@@ -36,12 +36,11 @@
 
           <div style="color:red;">{{errors.join('<br />')}}</div>
         </div>
-        <div v-if="selected" >
+        <div v-if="selected" style="flex:1;"  >
           <h2>{{selected.name}}</h2>
           <div><b>WordCount:</b> {{selected.content.trim().split(' ').length}}</div>
-          <div>
-            {{selected.content}}
-          </div>
+          <textarea v-model="selected.content" style="height: 100%; width: 100%; min-height:500px;">
+          </textarea>
         </div>
       </div>
     </div>
