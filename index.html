@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title></title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" ></script>
+    <script src="https://unpkg.com/vue@3.2.47/dist/vue.global.prod.js" ></script>
+    <style lang="text/css">
+      .chapter:hover {
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .chapter.selected {
+        color:blue;
+        font-weight: bold;
+      }
+    </style>
+
+  </head>
+  <body>
+    <div id="app">
+      <h3>Choose the local(s) ePub file</h3>
+
+      <input type="file" id="file" name="file" @change="readFile" /><br />
+      <b>Everything Word Count:</b>{{everythingWords}} | <b>Selected Word Count: </b>{{totalWords}}<br />
+      <div id="result_block" style="display:flex;">
+        <div style="margin-right:4px;min-width: 400px;display: flex; flex-direction: column;">
+            <div style="display: flex;" v-for="s in stuff">
+              <input type="checkbox" v-model="included" :value="s" />
+              <span class="chapter"  @click="selected = s" :class="{selected: s == selected}">{{s.name}} ({{s.content.trim().split(' ').length}})</span>
+            </div>
+
+          <div style="color:red;">{{errors.join('<br />')}}</div>
+        </div>
+        <div v-if="selected" >
+          <h2>{{selected.name}}</h2>
+          <div><b>WordCount:</b> {{selected.content.trim().split(' ').length}}</div>
+          <div>
+            {{selected.content}}
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      
+      const { createApp, ref, computed, reactive, watchEffect, onMounted } = Vue;
+  
+  
+        const app = {
+          setup() {
+            const stuff = ref([])
+            const errors = ref([])
+            const zip = ref(null)
+            const selected = ref(null);
+            const included = ref([]);
+            async function readFile(e) {
+              selected.value = null;
+              zip.value = null;
+              stuff.value = [];
+              errors.value = [];
+              included.value = []
+
+              const f = e.target.files[0]
+              try {
+                const z = await JSZip.loadAsync(f)                                  
+
+                zip.value = z;
+                z.forEach(async (relativePath, zipEntry) => {
+                  const ext = getFileExt(zipEntry.name);
+                  // console.log(ext)
+                  if (ext == 'html' || ext == 'xhtml' || ext == 'xml' )  {//TODO: xml should be optional
+                    const c = await readZipEntry(zipEntry.name)
+                    stuff.value.push(c)
+                  }
+                })
+              } catch (e) {
+                errors.value.push("Error reading " + f.name + ": " + e.message);
+              }
+            }
+            async function readZipEntry(file) {
+              if (!zip.value)
+                return;
+              try {
+                const content = await zip.value.file(file).async("string")
+                
+                return {name: file, content: content.replace(/<\/?.*?>/g,'')}
+              } catch (e) {
+                console.error(e)
+                return {name: 'Error', content: e.message}
+              }
+
+
+            }
+            function getFileExt(file) {
+              return file.split('.').pop();
+            }
+            const totalWords = computed(() => included.value.reduce((bookTotal,c) => c.content.trim().split(' ').length  + bookTotal,0 ))
+            const everythingWords = computed(() => stuff.value.reduce((bookTotal,c) => c.content.trim().split(' ').length  + bookTotal,0 ))
+            
+            return { readFile, stuff,errors, readZipEntry, selected, included, totalWords,everythingWords };
+          }
+        }
+  
+        createApp(app).mount('#app');
+      </script>
+  </body>
+</html>
