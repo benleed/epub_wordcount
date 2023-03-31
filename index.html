@@ -70,8 +70,8 @@
                 zip.value = z;
                 z.forEach(async (relativePath, zipEntry) => {
                   const ext = getFileExt(zipEntry.name);
-                  // console.log(ext)
-                  if (ext == 'html' || ext == 'xhtml' || ext == 'xml' )  {//TODO: xml should be optional
+                  //TODO: xml should be optional
+                  if (ext == 'html' || ext == 'htm' || ext == 'xhtml' || ext == 'xml' )  {
                     const c = await readZipEntry(zipEntry.name)
                     stuff.value.push(c)
                   }
