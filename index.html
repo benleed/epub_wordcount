@@ -75,6 +75,13 @@
                     const c = await readZipEntry(zipEntry.name)
                     stuff.value.push(c)
                   }
+                  stuff.value = stuff.value.sort((a,b) => {
+                    if (a.name.toLowerCase() < b.name.toLowerCase())
+                      return -1;
+                    if (a.name.toLowerCase() > b.name.toLowerCase())
+                      return 1;
+                    return 0;
+                  })
                 })
               } catch (e) {
                 errors.value.push("Error reading " + f.name + ": " + e.message);
@@ -97,6 +104,7 @@
             function getFileExt(file) {
               return file.split('.').pop();
             }
+            
             const totalWords = computed(() => included.value.reduce((bookTotal,c) => c.content.trim().split(' ').length  + bookTotal,0 ))
             const everythingWords = computed(() => stuff.value.reduce((bookTotal,c) => c.content.trim().split(' ').length  + bookTotal,0 ))
             
