@@ -53,12 +53,12 @@
           setup() {
             const stuff = ref([])
             const errors = ref([])
-            const zip = ref(null)
             const selected = ref(null);
             const included = ref([]);
+
             async function readFile(e) {
               selected.value = null;
-              zip.value = null;
+
               stuff.value = [];
               errors.value = [];
               included.value = []
@@ -67,12 +67,12 @@
               try {
                 const z = await JSZip.loadAsync(f)                                  
 
-                zip.value = z;
+
                 z.forEach(async (relativePath, zipEntry) => {
                   const ext = getFileExt(zipEntry.name);
                   //TODO: xml should be optional
                   if (ext == 'html' || ext == 'htm' || ext == 'xhtml' || ext == 'xml' )  {
-                    const c = await readZipEntry(zipEntry.name)
+                    const c = await readZipEntry(z,zipEntry.name)
                     stuff.value.push(c)
                   }
                   stuff.value = stuff.value.sort((a,b) => {
@@ -87,11 +87,10 @@
                 errors.value.push("Error reading " + f.name + ": " + e.message);
               }
             }
-            async function readZipEntry(file) {
-              if (!zip.value)
-                return;
+            async function readZipEntry(zip,file) {
+
               try {
-                const content = await zip.value.file(file).async("string")
+                const content = await zip.file(file).async("string")
                 
                 return {name: file, content: content.replace(/<\/?.*?>/g,'')}
               } catch (e) {
