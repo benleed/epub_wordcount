@@ -25,17 +25,27 @@
         transform: scale(1.7); /* Adjust the scaling factor as needed */
         margin: 5px 10px 5px 0px; /* Optional: Add some spacing between checkbox and label */
       }
+      body {
+        margin:0;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+        height:100vh;
+        padding-left:4px;
+      }
     </style>
 
   </head>
   <body>
     <div id="app">
       <h3>Choose the local(s) ePub file</h3>
-
-      <input type="file" id="file" name="file" @change="readFile" /><br />
-      <b>Everything Word Count:</b>{{everythingWords}} | <b>Selected Word Count: </b>{{totalWords}}<br />
-      <div id="result_block" style="display:flex;">
-        <div style="margin-right:4px;min-width: 400px;display: flex; flex-direction: column;">
+      <div>
+        <input type="file" id="file" name="file" @change="readFile" /><br />
+        <b>Everything Word Count:</b>{{everythingWords}} | <b>Selected Word Count: </b>{{totalWords}}<br />
+      </div>
+      <div id="result_block" style="display:flex; overflow-y: auto;">
+        <div style="margin-right:4px; padding-left:4px; min-width: 400px;display: flex; flex-direction: column; overflow-y: auto;">
             <div style="display: flex;" v-for="s in stuff">
               <input type="checkbox" v-model="included" :value="s" />
               <span class="chapter"  @click="selected = s" :class="{selected: s == selected}">{{s.name}} ({{s.content.trim().split(' ').length}})</span>
@@ -43,10 +53,9 @@
 
           <div style="color:red;">{{errors.join('<br />')}}</div>
         </div>
-        <div v-if="selected" style="flex:1;"  >
-          <h2>{{selected.name}}</h2>
-          <div><b>WordCount:</b> {{selected.content.trim().split(' ').length}}</div>
-          <textarea v-model="selected.content" style="height: 100%; width: 100%; min-height:500px;">
+        <div v-if="selected" style="flex-grow:1;overflow-y: auto; display: flex; flex-direction: column;"  >
+          <div><h2>{{selected.name}}</h2><b>WordCount:</b> {{selected.content.trim().split(' ').length}}</div>
+          <textarea v-model="selected.content" style="flex-grow:1;">
           </textarea>
         </div>
       </div>
