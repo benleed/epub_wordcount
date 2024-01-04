@@ -45,7 +45,7 @@
         <b>Everything Word Count:</b>{{everythingWords}} | <b>Selected Word Count: </b>{{totalWords}}
         <button v-if="stuff.length > 0" :disabled="included.length == 0" title="Select all above lowest tick" @click="selectAll()">✔️</button>
       </div>
-      <div id="result_block" style="display:flex; overflow-y: auto;">
+      <div id="result_block" style="display:flex; overflow-y: auto; height:100%;">
         <div style="margin-right:4px; padding-left:4px; min-width: 400px;display: flex; flex-direction: column; overflow-y: auto;">
             <div style="display: flex;" v-for="s in stuff">
               <input type="checkbox" v-model="included" :value="s" />
