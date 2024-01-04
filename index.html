@@ -42,7 +42,8 @@
       <h3>Choose the local(s) ePub file</h3>
       <div>
         <input type="file" id="file" name="file" @change="readFile" /><br />
-        <b>Everything Word Count:</b>{{everythingWords}} | <b>Selected Word Count: </b>{{totalWords}}<br />
+        <b>Everything Word Count:</b>{{everythingWords}} | <b>Selected Word Count: </b>{{totalWords}}
+        <button v-if="stuff.length > 0" :disabled="included.length == 0" title="Select all above lowest tick" @click="selectAll()">✔️</button>
       </div>
       <div id="result_block" style="display:flex; overflow-y: auto;">
         <div style="margin-right:4px; padding-left:4px; min-width: 400px;display: flex; flex-direction: column; overflow-y: auto;">
@@ -119,11 +120,22 @@
             function getFileExt(file) {
               return file.split('.').pop();
             }
+            function selectAll() {
+              let lowest = null;
+              for (let i = stuff.value.length -1; i >= 0; i--) {
+                if (included.value.find(f => f.name == stuff.value[i].name)) {
+                  lowest = i;
+                }
+                if (lowest !== null && !included.value.includes(stuff.value[i]))
+                  included.value.push(stuff.value[i])
+                  
+              }
+            }
             
             const totalWords = computed(() => included.value.reduce((bookTotal,c) => c.content.trim().split(' ').length  + bookTotal,0 ))
             const everythingWords = computed(() => stuff.value.reduce((bookTotal,c) => c.content.trim().split(' ').length  + bookTotal,0 ))
             
-            return { readFile, stuff,errors, readZipEntry, selected, included, totalWords,everythingWords };
+            return { readFile, stuff,errors, readZipEntry, selected, included, totalWords,everythingWords, selectAll };
           }
         }
   
