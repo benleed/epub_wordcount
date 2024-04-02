@@ -132,8 +132,8 @@
               }
             }
             
-            const totalWords = computed(() => included.value.reduce((bookTotal,c) => c.content.trim().split(' ').length  + bookTotal,0 ))
-            const everythingWords = computed(() => stuff.value.reduce((bookTotal,c) => c.content.trim().split(' ').length  + bookTotal,0 ))
+            const totalWords = computed(() => included.value.reduce((bookTotal,c) => c.content.trim().replace(/\s+/g,' ').split(' ').length  + bookTotal,0 ))
+            const everythingWords = computed(() => stuff.value.reduce((bookTotal,c) => c.content.trim().replace(/\s+/g,' ').split(' ').length  + bookTotal,0 ))
             
             return { readFile, stuff,errors, readZipEntry, selected, included, totalWords,everythingWords, selectAll };
           }
