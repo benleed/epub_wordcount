@@ -109,7 +109,7 @@
               try {
                 const content = await zip.file(file).async("string")
                 
-                return {name: file, content: content.replace(/<\/?.*?>/g,'')}
+                return {name: file, content: content.replace(/<\/?.*?>/g,' ').trim().replace(/\s+/g,' ')}
               } catch (e) {
                 console.error(e)
                 return {name: 'Error', content: e.message}
