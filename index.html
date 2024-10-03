@@ -49,13 +49,13 @@
         <div style="margin-right:4px; padding-left:4px; min-width: 400px;display: flex; flex-direction: column; overflow-y: auto;">
             <div style="display: flex;" v-for="s in stuff">
               <input type="checkbox" v-model="included" :value="s" />
-              <span class="chapter"  @click="selected = s" :class="{selected: s == selected}">{{s.name}} ({{s.content.trim().split(' ').length}})</span>
+              <span class="chapter"  @click="selected = s" :class="{selected: s == selected}">{{s.name}} ({{s.content.trim().replace(/\s+/g,' ').split(' ').length}})</span>
             </div>
 
           <div style="color:red;">{{errors.join('<br />')}}</div>
         </div>
         <div v-if="selected" style="flex-grow:1;overflow-y: auto; display: flex; flex-direction: column;"  >
-          <div><h2>{{selected.name}}</h2><b>WordCount:</b> {{selected.content.trim().split(' ').length}}</div>
+          <div><h2>{{selected.name}}</h2><b>WordCount:</b> {{selected.content.trim().replace(/\s+/g,' ').split(' ').length}}</div>
           <textarea v-model="selected.content" style="flex-grow:1;">
           </textarea>
         </div>
@@ -108,8 +108,9 @@
 
               try {
                 const content = await zip.file(file).async("string")
-                
-                return {name: file, content: content.replace(/<\/?.*?>/g,' ').trim().replace(/\s+/g,' ')}
+                //regex replaces multi white space into single space unless it includes newlines then it makes it a single newline 
+                return {name: file, content: content.replace(/<\/?.*?>/g,' ').trim().replace(/([^\S\r\n]*\n[^\S\r\n]*|[^\S\r\n]{2,})/g, match => match.includes('\n') ? '\n' : ' ').replace(/\n+/g,'\n')}
+
               } catch (e) {
                 console.error(e)
                 return {name: 'Error', content: e.message}
