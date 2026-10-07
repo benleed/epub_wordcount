@@ -1,146 +1,265 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>ePub Word Counter</title>
-    <meta name="description" content="">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" ></script>
-    <script src="https://unpkg.com/vue@3.2.47/dist/vue.global.prod.js" ></script>
-    <style lang="text/css">
-      .chapter:hover {
-        font-weight: bold;
-        cursor: pointer;
-      }
-      .chapter.selected {
-        color:blue;
-        font-weight: bold;
-      }
-      .chapter{
-        font-size:larger;
-      }
-      input[type="checkbox"] {
-        transform: scale(1.7); /* Adjust the scaling factor as needed */
-        margin: 5px 10px 5px 0px; /* Optional: Add some spacing between checkbox and label */
-      }
-      body {
-        margin:0;
-      }
-      #app {
-        display: flex;
-        flex-direction: column;
-        height:100vh;
-        padding-left:4px;
-      }
-    </style>
-
-  </head>
-  <body>
-    <div id="app">
-      <h3>Choose the local(s) ePub file</h3>
-      <div>
-        <input type="file" id="file" name="file" @change="readFile" /><br />
-        <b>Everything Word Count:</b>{{everythingWords}} | <b>Selected Word Count: </b>{{totalWords}}
-        <button v-if="stuff.length > 0" :disabled="included.length == 0" title="Select all above lowest tick" @click="selectAll()">✔️</button>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Private, browser-based EPUB word counts and chapter remapping.">
+  <title>Chapterwise — EPUB reading planner</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+  <style>
+    :root { --ink:#172033; --muted:#65718a; --line:#dbe1eb; --canvas:#f6f7fb; --card:#fff; --brand:#4f46e5; --brand-dark:#3730a3; --accent:#ecfdf5; --danger:#b42318; --shadow:0 18px 44px rgba(26,36,64,.10); }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--canvas); font:15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button,input,textarea { font:inherit; }
+    button { border:0; border-radius:9px; cursor:pointer; font-weight:700; padding:.68rem 1rem; }
+    button:disabled { cursor:not-allowed; opacity:.48; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; max-width:1240px; margin:auto; padding:19px 28px; }
+    .brand { display:flex; align-items:center; gap:10px; font-size:1.1rem; font-weight:850; letter-spacing:-.02em; }
+    .brand-mark { display:grid; place-items:center; width:31px; height:31px; color:#fff; background:linear-gradient(135deg,#6d5dfc,#3b82f6); border-radius:9px; box-shadow:0 5px 13px #4f46e552; }
+    .privacy { color:var(--muted); font-size:.85rem; }
+    .privacy::before { content:"●"; color:#10b981; margin-right:6px; }
+    main { max-width:1240px; margin:0 auto; padding:10px 28px 48px; }
+    .hero { padding:42px 0 27px; max-width:790px; }
+    h1 { margin:0 0 13px; font-size:clamp(2.15rem,5vw,4.25rem); line-height:1.03; letter-spacing:-.055em; }
+    .hero p { font-size:1.13rem; color:var(--muted); margin:0; max-width:680px; }
+    .dropzone { display:flex; align-items:center; gap:20px; padding:27px; border:2px dashed #aeb8cc; background:linear-gradient(110deg,#fff,#f7f5ff); border-radius:18px; transition:.2s; box-shadow:var(--shadow); }
+    .dropzone.dragging { border-color:var(--brand); background:#f3f1ff; transform:translateY(-2px); }
+    .drop-icon { display:grid; place-items:center; flex:none; width:48px; height:48px; border-radius:13px; background:#e9e7ff; color:var(--brand); font-size:1.55rem; }
+    .dropzone strong { display:block; font-size:1.02rem; } .dropzone span { color:var(--muted); font-size:.9rem; }
+    .file-button { margin-left:auto; color:white; background:var(--brand); white-space:nowrap; } .file-button:hover { background:var(--brand-dark); }
+    #fileInput { display:none; }
+    .notice { margin:20px 0; padding:12px 15px; border-radius:10px; color:#8a2d1e; background:#fff4ed; border:1px solid #fed7aa; }
+    .hidden { display:none !important; }
+    .workspace { display:grid; grid-template-columns:minmax(250px,.85fr) minmax(420px,1.8fr); gap:21px; margin-top:28px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:15px; box-shadow:0 3px 10px rgba(26,36,64,.025); }
+    .card-title { display:flex; align-items:center; justify-content:space-between; padding:17px 19px; border-bottom:1px solid var(--line); }
+    .card-title h2 { margin:0; font-size:.92rem; letter-spacing:.01em; } .eyebrow { color:var(--muted); font-size:.77rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; }
+    .sidebar { display:grid; align-content:start; gap:18px; }
+    .book-name { padding:17px 19px 6px; overflow-wrap:anywhere; font-weight:750; }
+    .stat-grid { display:grid; grid-template-columns:1fr 1fr; padding:13px 19px 19px; gap:12px; }
+    .stat { padding:12px; background:#f7f8fc; border-radius:10px; } .stat strong { display:block; font-size:1.42rem; letter-spacing:-.045em; } .stat span { color:var(--muted); font-size:.76rem; }
+    .control-body { padding:17px 19px 19px; }
+    input[type=range] { width:100%; accent-color:var(--brand); }
+    .depth-readout { display:flex; justify-content:space-between; margin:0 0 7px; font-size:.9rem; } .depth-readout b { color:var(--brand); }
+    .help { margin:10px 0 0; color:var(--muted); font-size:.83rem; }
+    .primary { color:white; background:var(--brand); } .primary:hover { background:var(--brand-dark); }
+    .secondary { color:var(--brand-dark); background:#eeedff; } .secondary:hover { background:#e4e2ff; }
+    .export-note { margin:11px 0 0; color:var(--muted); font-size:.78rem; }
+    .content { min-width:0; display:grid; gap:18px; }
+    .summary { display:flex; justify-content:space-between; align-items:center; gap:15px; padding:18px 20px; background:linear-gradient(105deg,#24205f,#4338ca); color:white; border-radius:15px; box-shadow:var(--shadow); }
+    .summary h2 { margin:0; font-size:1.05rem; } .summary p { margin:3px 0 0; color:#d9d7ff; font-size:.85rem; }
+    .total { font-size:1.8rem; font-weight:850; letter-spacing:-.05em; white-space:nowrap; }
+    .chapter-table { overflow:hidden; }
+    .chapter-row { display:grid; grid-template-columns:31px minmax(0,1fr) auto; gap:12px; align-items:center; padding:13px 19px; border-bottom:1px solid #edf0f5; }
+    .chapter-row:last-child { border-bottom:0; } .chapter-row:hover { background:#fafaff; }
+    .chapter-bar { width:5px; height:31px; border-radius:999px; background:#d9d6fe; } .chapter-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:680; }
+    .chapter-detail { color:var(--muted); font-size:.78rem; } .chapter-count { font-variant-numeric:tabular-nums; font-weight:800; }
+    .files { max-height:340px; overflow:auto; }
+    .file-row { display:grid; grid-template-columns:20px minmax(0,1fr) auto; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid #edf0f5; cursor:pointer; }
+    .file-row:hover,.file-row.active { background:#f5f4ff; } .file-row input { accent-color:var(--brand); width:16px; height:16px; }
+    .file-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.87rem; } .file-count { color:var(--muted); font-size:.8rem; font-variant-numeric:tabular-nums; }
+    .editor { padding:17px 19px 19px; } .editor-head { display:flex; gap:12px; justify-content:space-between; align-items:baseline; margin-bottom:10px; } .editor-head strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .editor-head span { color:var(--muted); font-size:.81rem; white-space:nowrap; }
+    textarea { display:block; width:100%; min-height:205px; resize:vertical; padding:12px; color:#2d3549; background:#fbfcff; border:1px solid #cfd6e5; border-radius:9px; line-height:1.55; } textarea:focus { outline:3px solid #4f46e526; border-color:#8078ef; }
+    .empty { padding:35px 20px; color:var(--muted); text-align:center; } .loading { padding:22px; color:var(--muted); }
+    .toc { padding:15px 18px 18px; max-height:280px; overflow:auto; } .toc ul { list-style:none; margin:0; padding-left:16px; border-left:1px solid #e3e6ef; } .toc > ul { padding-left:0; border:0; } .toc li { padding:3px 0; color:#4d5870; font-size:.88rem; } .toc li.keep { color:var(--ink); font-weight:700; } .toc li.cut { color:#98a2b3; text-decoration:line-through; }
+    @media (max-width:800px) { .topbar,main { padding-left:16px; padding-right:16px; } .topbar .privacy { display:none; } .hero { padding-top:27px; } .dropzone { flex-wrap:wrap; } .file-button { margin-left:0; } .workspace { grid-template-columns:1fr; } .sidebar { grid-template-columns:1fr 1fr; } .sidebar .card:first-child,.sidebar .card:last-child { grid-column:1 / -1; } }
+    @media (max-width:500px) { .sidebar { grid-template-columns:1fr; } .sidebar .card:first-child,.sidebar .card:last-child { grid-column:auto; } .summary { align-items:flex-start; flex-direction:column; } .chapter-row { padding:11px 13px; } }
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="brand"><span class="brand-mark">⌁</span>Chapterwise</div><div class="privacy">Your book stays in this browser</div></header>
+  <main>
+    <section class="hero"><h1>Plan the next chapter,<br>not just the next page.</h1><p>Open an EPUB to get a useful reading word count, inspect its chapter structure, and make a calmer table of contents for your e-reader.</p></section>
+    <label class="dropzone" id="dropzone" for="fileInput">
+      <span class="drop-icon">↥</span><span><strong>Drop an EPUB here</strong><span>or choose a file from this device · nothing is uploaded</span></span><span class="file-button">Choose EPUB</span>
+    </label>
+    <input id="fileInput" type="file" accept=".epub,application/epub+zip">
+    <div id="notice" class="notice hidden" role="alert"></div>
+    <div id="loading" class="loading hidden">Opening EPUB and mapping its chapters…</div>
+    <section id="workspace" class="workspace hidden">
+      <aside class="sidebar">
+        <section class="card"><div class="book-name" id="bookName"></div><div class="stat-grid"><div class="stat"><strong id="includedWords">—</strong><span>words included</span></div><div class="stat"><strong id="fileCount">—</strong><span>reading files</span></div></div></section>
+        <section class="card"><div class="card-title"><h2>Primary chapter level</h2><span class="eyebrow" id="depthLabel"></span></div><div class="control-body"><div class="depth-readout"><span>Keep through level</span><b id="depthValue">1</b></div><input id="depthSlider" type="range" min="1" max="1" value="1"><p class="help">Choose how far down the contents hierarchy a chapter should go. Deeper sections will be folded into the selected parent when exported.</p></div></section>
+        <section class="card"><div class="card-title"><h2>Export for e-reader</h2></div><div class="control-body"><button id="exportButton" class="primary" disabled>Download squished EPUB</button><p class="export-note">Creates a new file. It shortens the EPUB navigation and removes folded files from the reading spine after appending their contents to the parent.</p></div></section>
+      </aside>
+      <div class="content">
+        <section class="summary"><div><h2 id="summaryTitle">Chapter word count</h2><p id="summaryDescription">Counts follow the selected chapter level.</p></div><div class="total" id="totalWords">—</div></section>
+        <section class="card chapter-table"><div class="card-title"><h2>Reading breakdown</h2><span class="eyebrow" id="chapterCount"></span></div><div id="chapters"></div></section>
+        <section class="card"><div class="card-title"><h2>Included reading files</h2><button id="includeAll" class="secondary">Include all</button></div><div id="files" class="files"></div></section>
+        <section class="card"><div class="editor-head editor"><strong id="editorName">Select a reading file</strong><span id="editorCount"></span></div><div class="editor"><textarea id="textEditor" disabled placeholder="Select a file above to inspect the text counted for it. You can remove footnotes, bibliography, or any other text here; this only changes the count, never your original EPUB."></textarea><p class="help">This is the text used for word counts. Changes here do not alter the exported EPUB; exclude a whole file with its checkbox when appropriate.</p></div></section>
+        <section class="card"><div class="card-title"><h2>Contents preview</h2><span class="eyebrow">struck items fold into parent</span></div><div id="tocPreview" class="toc"></div></section>
       </div>
-      <div id="result_block" style="display:flex; overflow-y: auto; height:100%;">
-        <div style="margin-right:4px; padding-left:4px; min-width: 400px;display: flex; flex-direction: column; overflow-y: auto;">
-            <div style="display: flex;" v-for="s in stuff">
-              <input type="checkbox" v-model="included" :value="s" />
-              <span class="chapter"  @click="selected = s" :class="{selected: s == selected}">{{s.name}} ({{s.content.trim().replace(/\s+/g,' ').split(' ').length}})</span>
-            </div>
-
-          <div style="color:red;">{{errors.join('<br />')}}</div>
-        </div>
-        <div v-if="selected" style="flex-grow:1;overflow-y: auto; display: flex; flex-direction: column;"  >
-          <div><h2>{{selected.name}}</h2><b>WordCount:</b> {{selected.content.trim().replace(/\s+/g,' ').split(' ').length}}</div>
-          <textarea v-model="selected.content" style="flex-grow:1;">
-          </textarea>
-        </div>
-      </div>
-    </div>
-    <script>
-      
-      const { createApp, ref, computed, reactive, watchEffect, onMounted } = Vue;
-  
-  
-        const app = {
-          setup() {
-            const stuff = ref([])
-            const errors = ref([])
-            const selected = ref(null);
-            const included = ref([]);
-
-            async function readFile(e) {
-              selected.value = null;
-
-              stuff.value = [];
-              errors.value = [];
-              included.value = []
-
-              const f = e.target.files[0]
-              try {
-                const z = await JSZip.loadAsync(f)                                  
-
-
-                z.forEach(async (relativePath, zipEntry) => {
-                  const ext = getFileExt(zipEntry.name);
-                  //TODO: xml should be optional
-                  if (ext == 'html' || ext == 'htm' || ext == 'xhtml' || ext == 'xml' )  {
-                    const c = await readZipEntry(z,zipEntry.name)
-                    stuff.value.push(c)
-                  }
-                  stuff.value = stuff.value.sort((a,b) => {
-                    if (a.name.toLowerCase() < b.name.toLowerCase())
-                      return -1;
-                    if (a.name.toLowerCase() > b.name.toLowerCase())
-                      return 1;
-                    return 0;
-                  })
-                })
-              } catch (e) {
-                errors.value.push("Error reading " + f.name + ": " + e.message);
-              }
-            }
-            async function readZipEntry(zip,file) {
-
-              try {
-                const content = await zip.file(file).async("string")
-                //regex replaces multi white space into single space unless it includes newlines then it makes it a single newline 
-                return {name: file, content: content.replace(/<\/?.*?>/g,' ').trim().replace(/([^\S\r\n]*\n[^\S\r\n]*|[^\S\r\n]{2,})/g, match => match.includes('\n') ? '\n' : ' ').replace(/\n+/g,'\n')}
-
-              } catch (e) {
-                console.error(e)
-                return {name: 'Error', content: e.message}
-              }
-
-
-            }
-            function getFileExt(file) {
-              return file.split('.').pop();
-            }
-            function selectAll() {
-              let lowest = null;
-              for (let i = stuff.value.length -1; i >= 0; i--) {
-                if (included.value.find(f => f.name == stuff.value[i].name)) {
-                  lowest = i;
-                }
-                if (lowest !== null && !included.value.includes(stuff.value[i]))
-                  included.value.push(stuff.value[i])
-                  
-              }
-            }
-            
-            const totalWords = computed(() => included.value.reduce((bookTotal,c) => c.content.trim().replace(/\s+/g,' ').split(' ').length  + bookTotal,0 ))
-            const everythingWords = computed(() => stuff.value.reduce((bookTotal,c) => c.content.trim().replace(/\s+/g,' ').split(' ').length  + bookTotal,0 ))
-            
-            return { readFile, stuff,errors, readZipEntry, selected, included, totalWords,everythingWords, selectAll };
-          }
+    </section>
+  </main>
+  <script>
+  (() => {
+    const $ = id => document.getElementById(id);
+    const state = { zip:null, fileName:"book.epub", opfPath:"", opfText:"", base:"", manifest:new Map(), spine:[], nav:[], navPath:"", navKind:"", depth:1, maxDepth:1, selected:null };
+    const decoder = new TextDecoder();
+    const cleanPath = path => {
+      const parts = [];
+      path.replace(/\\/g,"/").split("/").forEach(part => { if (!part || part === ".") return; if (part === "..") parts.pop(); else parts.push(part); });
+      return parts.join("/");
+    };
+    const directoryOf = path => path.includes("/") ? path.slice(0,path.lastIndexOf("/")+1) : "";
+    const resolve = (base, href) => cleanPath(directoryOf(base) + decodeURI(href.split("#")[0].split("?")[0]));
+    const splitHref = href => { const pos = href.indexOf("#"); return { path:href.slice(0,pos < 0 ? href.length : pos), fragment:pos < 0 ? "" : href.slice(pos) }; };
+    const relative = (from, to) => {
+      const a = directoryOf(from).split("/").filter(Boolean), b = to.split("/").filter(Boolean); while (a.length && b.length && a[0] === b[0]) { a.shift(); b.shift(); } return "../".repeat(a.length) + b.join("/");
+    };
+    const number = n => new Intl.NumberFormat().format(n);
+    function showNotice(message) { $("notice").textContent = message; $("notice").classList.remove("hidden"); }
+    function clearNotice() { $("notice").classList.add("hidden"); }
+    function xml(text, label) { const doc = new DOMParser().parseFromString(text,"application/xml"); if (doc.querySelector("parsererror")) throw new Error(`Could not read ${label}.`); return doc; }
+    function directChildren(node, name) { return [...node.children].filter(child => child.localName === name); }
+    function words(text) { return (text.match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu) || []).length; }
+    function textFromMarkup(source) {
+      const doc = new DOMParser().parseFromString(source,"text/html");
+      doc.querySelectorAll("script,style,nav,head,svg,math,aside,[epub\\:type~='footnote'],[role='doc-footnote'],[role='doc-endnote']").forEach(node => node.remove());
+      return (doc.body?.textContent || "").replace(/\s+/g," ").trim();
+    }
+    async function readEntry(path) { const entry = state.zip.file(path); if (!entry) throw new Error(`Missing EPUB file: ${path}`); return entry.async("string"); }
+    function parseNcx(parent, depth=1) {
+      return directChildren(parent,"navPoint").map(point => {
+        const content = directChildren(point,"content")[0], label = point.querySelector(":scope > navLabel > text")?.textContent?.trim() || "Untitled section";
+        const href = content?.getAttribute("src") || "";
+        return { label, href, path:resolve(state.navPath,href), depth, children:parseNcx(point,depth+1), parent:null };
+      });
+    }
+    function parseNavList(list, depth=1) {
+      return directChildren(list,"li").map(li => {
+        const anchor = [...li.children].find(child => child.localName === "a") || li.querySelector(":scope > a");
+        const href = anchor?.getAttribute("href") || "", label = (anchor?.textContent || [...li.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(" ") || "Untitled section").trim();
+        const childList = directChildren(li,"ol")[0] || directChildren(li,"ul")[0];
+        return { label, href, path:resolve(state.navPath,href), depth, children:childList ? parseNavList(childList,depth+1) : [], parent:null };
+      });
+    }
+    function setParents(nodes, parent=null) { nodes.forEach(node => { node.parent=parent; setParents(node.children,node); }); }
+    function flatten(nodes, out=[]) { nodes.forEach(node => { out.push(node); flatten(node.children,out); }); return out; }
+    function labelFor(path) { const matches = flatten(state.nav).filter(node => node.path === path); return matches.at(-1)?.label || path.split("/").at(-1); }
+    function nodeFor(path) { return flatten(state.nav).filter(node => node.path === path).at(-1) || null; }
+    function primaryFor(doc) {
+      let node = nodeFor(doc.path);
+      if (!node) return null;
+      while (node.parent && node.depth > state.depth) node = node.parent;
+      return node;
+    }
+    function includedDocs() { return state.spine.filter(doc => doc.included); }
+    function docWords(doc) { return words(doc.override ?? doc.text); }
+    function groupedDocs() {
+      const groups = new Map();
+      includedDocs().forEach(doc => {
+        const primary = primaryFor(doc), key = primary ? `nav:${primary.path}:${primary.depth}` : `file:${doc.path}`;
+        if (!groups.has(key)) groups.set(key,{ label:primary?.label || doc.label, docs:[], node:primary });
+        groups.get(key).docs.push(doc);
+      });
+      return [...groups.values()].map(group => ({...group, count:group.docs.reduce((sum,doc)=>sum+docWords(doc),0)}));
+    }
+    function render() {
+      const total = includedDocs().reduce((sum,doc)=>sum+docWords(doc),0), groups = groupedDocs();
+      $("includedWords").textContent = number(total); $("fileCount").textContent = number(includedDocs().length); $("totalWords").textContent = number(total);
+      $("depthValue").textContent = state.depth; $("depthLabel").textContent = state.maxDepth > 1 ? `of ${state.maxDepth}` : "flat contents";
+      $("depthSlider").value = state.depth; $("chapterCount").textContent = `${groups.length} group${groups.length === 1 ? "" : "s"}`;
+      $("chapters").innerHTML = groups.length ? groups.map((group,index) => `<div class="chapter-row"><span class="chapter-bar" style="background:hsl(${245 + (index*23)%75} 75% 82%)"></span><div><div class="chapter-name" title="${escapeHtml(group.label)}">${escapeHtml(group.label)}</div><div class="chapter-detail">${group.docs.length} reading file${group.docs.length === 1 ? "" : "s"}</div></div><div class="chapter-count">${number(group.count)}</div></div>`).join("") : '<div class="empty">No reading files are included.</div>';
+      $("files").innerHTML = state.spine.map((doc,index) => `<label class="file-row ${state.selected === doc ? "active" : ""}" data-index="${index}"><input type="checkbox" ${doc.included ? "checked" : ""} aria-label="Include ${escapeHtml(doc.label)}"><span class="file-label" title="${escapeHtml(doc.path)}">${escapeHtml(doc.label)}</span><span class="file-count">${number(docWords(doc))}</span></label>`).join("");
+      document.querySelectorAll(".file-row").forEach(row => row.addEventListener("click", event => {
+        const doc = state.spine[Number(row.dataset.index)];
+        if (event.target.type === "checkbox") doc.included = event.target.checked;
+        state.selected = doc; updateEditor(); render();
+      }));
+      renderToc();
+    }
+    function updateEditor() {
+      const doc=state.selected, editor=$("textEditor");
+      $("editorName").textContent = doc ? doc.label : "Select a reading file"; $("editorCount").textContent = doc ? `${number(docWords(doc))} words` : "";
+      editor.disabled = !doc; editor.value = doc ? (doc.override ?? doc.text) : "";
+    }
+    function escapeHtml(value) { const el=document.createElement("span"); el.textContent=value; return el.innerHTML; }
+    function renderToc() {
+      const tree = nodes => `<ul>${nodes.map(node => `<li class="${node.depth <= state.depth ? "keep" : "cut"}">${escapeHtml(node.label)}${node.children.length ? tree(node.children) : ""}</li>`).join("")}</ul>`;
+      $("tocPreview").innerHTML = state.nav.length ? tree(state.nav) : '<div class="empty">This EPUB has no usable navigation document. Word counts still use its reading order.</div>';
+    }
+    async function openBook(file) {
+      clearNotice(); $("workspace").classList.add("hidden"); $("loading").classList.remove("hidden");
+      try {
+        if (!window.JSZip) throw new Error("The EPUB reader library did not load. Check your internet connection and try again.");
+        state.zip = await JSZip.loadAsync(file); state.fileName=file.name; state.manifest.clear(); state.spine=[]; state.nav=[]; state.selected=null;
+        const container = xml(await readEntry("META-INF/container.xml"),"EPUB container"), rootfile=container.querySelector("rootfile");
+        if (!rootfile) throw new Error("This file is not a standard EPUB: META-INF/container.xml has no rootfile.");
+        state.opfPath=cleanPath(rootfile.getAttribute("full-path")); state.base=directoryOf(state.opfPath); state.opfText=await readEntry(state.opfPath);
+        const opf=xml(state.opfText,"EPUB package"), manifest=opf.querySelector("manifest"), spine=opf.querySelector("spine");
+        if (!manifest || !spine) throw new Error("This EPUB package does not contain a manifest and spine.");
+        [...manifest.querySelectorAll(":scope > item")].forEach(item => state.manifest.set(item.getAttribute("id"),{ id:item.getAttribute("id"), path:resolve(state.opfPath,item.getAttribute("href")), href:item.getAttribute("href"), media:item.getAttribute("media-type")||"", properties:item.getAttribute("properties")||"" }));
+        const navItem=[...state.manifest.values()].find(item => item.properties.split(/\s+/).includes("nav"));
+        const ncxItem=state.manifest.get(spine.getAttribute("toc")) || [...state.manifest.values()].find(item => /ncx/i.test(item.media));
+        if (navItem) {
+          state.navPath=navItem.path; state.navKind="xhtml";
+          const navDoc=new DOMParser().parseFromString(await readEntry(navItem.path),"text/html");
+          const toc=navDoc.querySelector('nav[epub\\:type~="toc"], nav[role="doc-toc"], nav#toc');
+          const list=toc?.querySelector(":scope > ol, :scope > ul") || toc?.querySelector("ol,ul");
+          state.nav=list ? parseNavList(list) : [];
+        } else if (ncxItem) {
+          state.navPath=ncxItem.path; state.navKind="ncx";
+          const ncx=xml(await readEntry(ncxItem.path),"NCX navigation"); state.nav=parseNcx(ncx.querySelector("navMap"));
         }
-  
-        createApp(app).mount('#app');
-      </script>
-  </body>
+        setParents(state.nav);
+        state.maxDepth=Math.max(1,...flatten(state.nav).map(node=>node.depth)); state.depth=Math.min(state.depth,state.maxDepth); $("depthSlider").max=state.maxDepth;
+        const refs=[...spine.querySelectorAll(":scope > itemref")];
+        for (const ref of refs) {
+          const item=state.manifest.get(ref.getAttribute("idref")); if (!item || !/(xhtml|html|xml)/i.test(item.media + item.path)) continue;
+          const raw=await readEntry(item.path), text=textFromMarkup(raw);
+          state.spine.push({ id:item.id, path:item.path, raw, text, override:null, included:true, label:labelFor(item.path) });
+        }
+        if (!state.spine.length) throw new Error("No XHTML or HTML reading files were found in this EPUB's spine.");
+        $("bookName").textContent=file.name.replace(/\.epub$/i,""); $("exportButton").disabled=!state.nav.length; $("workspace").classList.remove("hidden"); render(); updateEditor();
+        if (!state.nav.length) showNotice("This EPUB has no readable table of contents, so the chapter breakdown uses individual reading files and remapping is unavailable.");
+      } catch (error) { showNotice(error.message || "The EPUB could not be opened."); console.error(error); }
+      finally { $("loading").classList.add("hidden"); }
+    }
+    function rewriteLinks(doc, fromPath, toPath) {
+      doc.querySelectorAll("[src],[href]").forEach(element => ["src","href"].forEach(attribute => {
+        if (!element.hasAttribute(attribute)) return; const value=element.getAttribute(attribute); if (!value || value.startsWith("#") || /^(?:[a-z]+:|\/\/)/i.test(value)) return;
+        const parts=splitHref(value), absolute=resolve(fromPath,parts.path); element.setAttribute(attribute,relative(toPath,absolute)+parts.fragment);
+      }));
+    }
+    function trimXhtmlNav(source) {
+      const doc=new DOMParser().parseFromString(source,"text/html"), toc=doc.querySelector('nav[epub\\:type~="toc"], nav[role="doc-toc"], nav#toc'); if (!toc) return source;
+      const cut=(list,level) => directChildren(list,"li").forEach(li => directChildren(li,"ol").concat(directChildren(li,"ul")).forEach(child => { if (level >= state.depth) child.remove(); else cut(child,level+1); }));
+      const list=toc.querySelector(":scope > ol, :scope > ul") || toc.querySelector("ol,ul"); if (list) cut(list,1);
+      return "<!DOCTYPE html>\n" + doc.documentElement.outerHTML;
+    }
+    function trimNcx(source) {
+      const doc=xml(source,"NCX navigation"), cut=(parent,level) => directChildren(parent,"navPoint").forEach(point => { if (level >= state.depth) directChildren(point,"navPoint").forEach(child=>child.remove()); else cut(point,level+1); });
+      const map=doc.querySelector("navMap"); if (map) cut(map,1); return new XMLSerializer().serializeToString(doc);
+    }
+    async function exportBook() {
+      try {
+        const opf=xml(state.opfText,"EPUB package"), spine=opf.querySelector("spine"), folded=new Set(), plan=new Map();
+        state.spine.forEach(doc => { const source=nodeFor(doc.path), target=primaryFor(doc); if (source && target && source.depth > state.depth && target.path && target.path !== doc.path) { if (!plan.has(target.path)) plan.set(target.path,[]); plan.get(target.path).push(doc); folded.add(doc.id); } });
+        for (const [targetPath,children] of plan) {
+          const target=state.spine.find(doc=>doc.path===targetPath); if (!target) continue;
+          const targetDoc=new DOMParser().parseFromString(target.raw,"text/html"), targetBody=targetDoc.body; if (!targetBody) continue;
+          children.forEach(child => { const childDoc=new DOMParser().parseFromString(child.raw,"text/html"); rewriteLinks(childDoc,child.path,targetPath); const section=targetDoc.createElement("section"); section.setAttribute("data-chapterwise-merged-from",child.path); section.setAttribute("aria-label",child.label); [...childDoc.body.childNodes].forEach(node=>section.appendChild(targetDoc.importNode(node,true))); targetBody.appendChild(section); });
+          state.zip.file(targetPath,"<!DOCTYPE html>\n"+targetDoc.documentElement.outerHTML);
+        }
+        [...spine.querySelectorAll(":scope > itemref")].forEach(ref => { if (folded.has(ref.getAttribute("idref"))) ref.remove(); });
+        state.zip.file(state.opfPath,new XMLSerializer().serializeToString(opf));
+        if (state.navPath) { const original=await readEntry(state.navPath); state.zip.file(state.navPath,state.navKind === "ncx" ? trimNcx(original) : trimXhtmlNav(original)); }
+        // EPUB requires this sentinel entry to remain uncompressed. JSZip keeps the
+        // existing entry order, while this explicit setting preserves its format.
+        state.zip.file("mimetype","application/epub+zip",{compression:"STORE"});
+        const blob=await state.zip.generateAsync({type:"blob",compression:"DEFLATE"}), link=document.createElement("a"); link.href=URL.createObjectURL(blob); link.download=state.fileName.replace(/\.epub$/i,"")+"_squished.epub"; link.click(); setTimeout(()=>URL.revokeObjectURL(link.href),1500);
+      } catch (error) { showNotice(`Could not export this EPUB: ${error.message || error}`); console.error(error); }
+    }
+    $("fileInput").addEventListener("change",event=>event.target.files[0] && openBook(event.target.files[0]));
+    ["dragenter","dragover"].forEach(type=>$("dropzone").addEventListener(type,event=>{event.preventDefault(); $("dropzone").classList.add("dragging");}));
+    ["dragleave","drop"].forEach(type=>$("dropzone").addEventListener(type,event=>{event.preventDefault(); $("dropzone").classList.remove("dragging");}));
+    $("dropzone").addEventListener("drop",event=>event.dataTransfer.files[0] && openBook(event.dataTransfer.files[0]));
+    $("depthSlider").addEventListener("input",event=>{state.depth=Number(event.target.value); render();});
+    $("includeAll").addEventListener("click",()=>{state.spine.forEach(doc=>doc.included=true); render();});
+    $("textEditor").addEventListener("input",event=>{if (!state.selected) return; state.selected.override=event.target.value; $("editorCount").textContent=`${number(docWords(state.selected))} words`; render();});
+    $("exportButton").addEventListener("click",exportBook);
+  })();
+  </script>
+</body>
 </html>

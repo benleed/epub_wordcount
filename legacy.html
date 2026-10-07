@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>ePub Word Counter</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" ></script>
+    <script src="https://unpkg.com/vue@3.2.47/dist/vue.global.prod.js" ></script>
+    <style lang="text/css">
+      .chapter:hover {
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .chapter.selected {
+        color:blue;
+        font-weight: bold;
+      }
+      .chapter{
+        font-size:larger;
+      }
+      input[type="checkbox"] {
+        transform: scale(1.7); /* Adjust the scaling factor as needed */
+        margin: 5px 10px 5px 0px; /* Optional: Add some spacing between checkbox and label */
+      }
+      body {
+        margin:0;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+        height:100vh;
+        padding-left:4px;
+      }
+    </style>
+
+  </head>
+  <body>
+    <div id="app">
+      <h3>Choose the local(s) ePub file</h3>
+      <div>
+        <input type="file" id="file" name="file" @change="readFile" /><br />
+        <b>Everything Word Count:</b>{{everythingWords}} | <b>Selected Word Count: </b>{{totalWords}}
+        <button v-if="stuff.length > 0" :disabled="included.length == 0" title="Select all above lowest tick" @click="selectAll()">✔️</button>
+      </div>
+      <div id="result_block" style="display:flex; overflow-y: auto; height:100%;">
+        <div style="margin-right:4px; padding-left:4px; min-width: 400px;display: flex; flex-direction: column; overflow-y: auto;">
+            <div style="display: flex;" v-for="s in stuff">
+              <input type="checkbox" v-model="included" :value="s" />
+              <span class="chapter"  @click="selected = s" :class="{selected: s == selected}">{{s.name}} ({{s.content.trim().replace(/\s+/g,' ').split(' ').length}})</span>
+            </div>
+
+          <div style="color:red;">{{errors.join('<br />')}}</div>
+        </div>
+        <div v-if="selected" style="flex-grow:1;overflow-y: auto; display: flex; flex-direction: column;"  >
+          <div><h2>{{selected.name}}</h2><b>WordCount:</b> {{selected.content.trim().replace(/\s+/g,' ').split(' ').length}}</div>
+          <textarea v-model="selected.content" style="flex-grow:1;">
+          </textarea>
+        </div>
+      </div>
+    </div>
+    <script>
+      
+      const { createApp, ref, computed, reactive, watchEffect, onMounted } = Vue;
+  
+  
+        const app = {
+          setup() {
+            const stuff = ref([])
+            const errors = ref([])
+            const selected = ref(null);
+            const included = ref([]);
+
+            async function readFile(e) {
+              selected.value = null;
+
+              stuff.value = [];
+              errors.value = [];
+              included.value = []
+
+              const f = e.target.files[0]
+              try {
+                const z = await JSZip.loadAsync(f)                                  
+
+
+                z.forEach(async (relativePath, zipEntry) => {
+                  const ext = getFileExt(zipEntry.name);
+                  //TODO: xml should be optional
+                  if (ext == 'html' || ext == 'htm' || ext == 'xhtml' || ext == 'xml' )  {
+                    const c = await readZipEntry(z,zipEntry.name)
+                    stuff.value.push(c)
+                  }
+                  stuff.value = stuff.value.sort((a,b) => {
+                    if (a.name.toLowerCase() < b.name.toLowerCase())
+                      return -1;
+                    if (a.name.toLowerCase() > b.name.toLowerCase())
+                      return 1;
+                    return 0;
+                  })
+                })
+              } catch (e) {
+                errors.value.push("Error reading " + f.name + ": " + e.message);
+              }
+            }
+            async function readZipEntry(zip,file) {
+
+              try {
+                const content = await zip.file(file).async("string")
+                //regex replaces multi white space into single space unless it includes newlines then it makes it a single newline 
+                return {name: file, content: content.replace(/<\/?.*?>/g,' ').trim().replace(/([^\S\r\n]*\n[^\S\r\n]*|[^\S\r\n]{2,})/g, match => match.includes('\n') ? '\n' : ' ').replace(/\n+/g,'\n')}
+
+              } catch (e) {
+                console.error(e)
+                return {name: 'Error', content: e.message}
+              }
+
+
+            }
+            function getFileExt(file) {
+              return file.split('.').pop();
+            }
+            function selectAll() {
+              let lowest = null;
+              for (let i = stuff.value.length -1; i >= 0; i--) {
+                if (included.value.find(f => f.name == stuff.value[i].name)) {
+                  lowest = i;
+                }
+                if (lowest !== null && !included.value.includes(stuff.value[i]))
+                  included.value.push(stuff.value[i])
+                  
+              }
+            }
+            
+            const totalWords = computed(() => included.value.reduce((bookTotal,c) => c.content.trim().replace(/\s+/g,' ').split(' ').length  + bookTotal,0 ))
+            const everythingWords = computed(() => stuff.value.reduce((bookTotal,c) => c.content.trim().replace(/\s+/g,' ').split(' ').length  + bookTotal,0 ))
+            
+            return { readFile, stuff,errors, readZipEntry, selected, included, totalWords,everythingWords, selectAll };
+          }
+        }
+  
+        createApp(app).mount('#app');
+      </script>
+  </body>
+</html>
