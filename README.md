@@ -17,7 +17,9 @@ book storage: the EPUB is opened and processed in the browser.
 - Lets the reader exclude individual reading files (useful for bibliographies,
   indexes, notes, and appendices) and edit the *counted text* for a file.
 - Groups the displayed count by a selectable navigation depth. This makes it
-  possible to treat nested sections as part of a parent chapter.
+  possible to treat nested sections as part of a parent chapter. For EPUBs
+  whose contents are completely flat, a separate target-chapter control
+  combines adjacent sections into practical, similarly sized reading chunks.
 - Exports a separate `_squished.epub`. The export trims the navigation below
   the chosen level, appends folded sub-chapter document bodies to the parent,
   and removes the folded documents from the EPUB spine. It keeps the original
@@ -27,11 +29,19 @@ book storage: the EPUB is opened and processed in the browser.
 
 1. Open the GitHub Pages site (or serve this directory locally) and choose an
    `.epub` file.
-2. Check the **Reading breakdown**. Untick files that should not contribute to
-   the estimate, or select one and edit the text used for its count.
-3. Set **Primary chapter level**. Level 1 means the top-level contents entries;
+2. Review the **Overview** tab for the running total, the **Reading breakdown**,
+   and a contents preview. Excluded chapters are greyed out; a partly included
+   chapter shows *included / total*.
+3. Open the **Files & text** tab to manage individual files. **Exclude all**
+   clears every selection so you can tick only the sections you want, and
+   selecting a file opens its counted text on the right for editing. Clicking a
+   row selects it; use its checkbox to include or exclude it.
+4. Set **Primary chapter level**. Level 1 means the top-level contents entries;
    a larger level preserves more nested sections.
-4. Use **Download squished EPUB** only after reviewing the contents preview.
+5. For a flat contents list, use **Target chapters** to choose the maximum
+   number of reading chapters in the rebuilt book. The default is 18 (or fewer
+   when the book has fewer sections).
+6. Use **Download squished EPUB** only after reviewing the contents preview.
    Test the result on the target e-reader before replacing a copy in your
    library.
 
@@ -59,12 +69,17 @@ without a readable navigation document can still be counted file by file, but
 cannot be structurally remapped.
 
 When folding standalone sub-chapters, the source XHTML is appended to its
-retained parent and its relative links are rebased for the new location. The
-source document remains in the ZIP manifest but is removed from the spine; this
-helps retain internal links/resources while preventing the normal reading flow
-from treating it as a separate chapter. Because malformed or unusually
-constructed EPUBs are common, keep the original and validate exported books in
-the e-reader that matters to you.
+retained parent and its relative links are rebased for the new location. Every
+resulting chapter keeps its first reading file and folds the subsequent files
+into it. The folded source documents remain in the ZIP manifest but are removed
+from the spine; this helps retain internal links/resources while preventing the
+normal reading flow from treating them as separate chapters. For a flat contents
+list, adjacent entries are combined into the target chapter count by reading
+length; because no contents entry precedes it, any opening spine file (such as a
+cover) folds into the first chapter, which is why that chapter's retained file
+is the book's opening file. Because malformed or unusually constructed EPUBs are
+common, keep the original and validate exported books in the e-reader that
+matters to you.
 
 ## Future direction: PDFs
 

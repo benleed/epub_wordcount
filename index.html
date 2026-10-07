@@ -46,23 +46,28 @@
     .secondary { color:var(--brand-dark); background:#eeedff; } .secondary:hover { background:#e4e2ff; }
     .export-note { margin:11px 0 0; color:var(--muted); font-size:.78rem; }
     .content { min-width:0; display:grid; gap:18px; }
+    #filesPanel { display:grid; grid-template-columns:minmax(335px,.95fr) minmax(0,1.05fr); align-items:start; gap:18px; }
+    .workspace-tabs { display:flex; gap:5px; padding:5px; background:#e9ecf5; border-radius:11px; width:max-content; }
+    .tab-button { padding:.48rem .85rem; color:#64708a; background:transparent; border-radius:8px; font-size:.86rem; }
+    .tab-button.active { color:var(--ink); background:#fff; box-shadow:0 1px 4px #27325a1c; }
     .summary { display:flex; justify-content:space-between; align-items:center; gap:15px; padding:18px 20px; background:linear-gradient(105deg,#24205f,#4338ca); color:white; border-radius:15px; box-shadow:var(--shadow); }
     .summary h2 { margin:0; font-size:1.05rem; } .summary p { margin:3px 0 0; color:#d9d7ff; font-size:.85rem; }
     .total { font-size:1.8rem; font-weight:850; letter-spacing:-.05em; white-space:nowrap; }
     .chapter-table { overflow:hidden; }
     .chapter-row { display:grid; grid-template-columns:31px minmax(0,1fr) auto; gap:12px; align-items:center; padding:13px 19px; border-bottom:1px solid #edf0f5; }
     .chapter-row:last-child { border-bottom:0; } .chapter-row:hover { background:#fafaff; }
+    .chapter-row.excluded { opacity:.5; background:#fafafa; } .chapter-row.partial .chapter-count .included-count { color:#475569; } .excluded .chapter-name { color:#7b8497; text-decoration:line-through; }
     .chapter-bar { width:5px; height:31px; border-radius:999px; background:#d9d6fe; } .chapter-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:680; }
     .chapter-detail { color:var(--muted); font-size:.78rem; } .chapter-count { font-variant-numeric:tabular-nums; font-weight:800; }
-    .files { max-height:340px; overflow:auto; }
-    .file-row { display:grid; grid-template-columns:20px minmax(0,1fr) auto; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid #edf0f5; cursor:pointer; }
-    .file-row:hover,.file-row.active { background:#f5f4ff; } .file-row input { accent-color:var(--brand); width:16px; height:16px; }
+    .files { max-height:calc(100vh - 265px); min-height:340px; overflow:auto; }
+    .file-row { display:grid; grid-template-columns:28px minmax(0,1fr) auto; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid #edf0f5; cursor:pointer; }
+    .file-row:hover,.file-row.active { background:#f5f4ff; } .file-row input { accent-color:var(--brand); width:21px; height:21px; cursor:pointer; }
     .file-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.87rem; } .file-count { color:var(--muted); font-size:.8rem; font-variant-numeric:tabular-nums; }
     .editor { padding:17px 19px 19px; } .editor-head { display:flex; gap:12px; justify-content:space-between; align-items:baseline; margin-bottom:10px; } .editor-head strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .editor-head span { color:var(--muted); font-size:.81rem; white-space:nowrap; }
-    textarea { display:block; width:100%; min-height:205px; resize:vertical; padding:12px; color:#2d3549; background:#fbfcff; border:1px solid #cfd6e5; border-radius:9px; line-height:1.55; } textarea:focus { outline:3px solid #4f46e526; border-color:#8078ef; }
+    textarea { display:block; width:100%; min-height:calc(100vh - 255px); resize:vertical; padding:15px; color:#2d3549; background:#fbfcff; border:1px solid #cfd6e5; border-radius:9px; line-height:1.65; } textarea:focus { outline:3px solid #4f46e526; border-color:#8078ef; }
     .empty { padding:35px 20px; color:var(--muted); text-align:center; } .loading { padding:22px; color:var(--muted); }
     .toc { padding:15px 18px 18px; max-height:280px; overflow:auto; } .toc ul { list-style:none; margin:0; padding-left:16px; border-left:1px solid #e3e6ef; } .toc > ul { padding-left:0; border:0; } .toc li { padding:3px 0; color:#4d5870; font-size:.88rem; } .toc li.keep { color:var(--ink); font-weight:700; } .toc li.cut { color:#98a2b3; text-decoration:line-through; }
-    @media (max-width:800px) { .topbar,main { padding-left:16px; padding-right:16px; } .topbar .privacy { display:none; } .hero { padding-top:27px; } .dropzone { flex-wrap:wrap; } .file-button { margin-left:0; } .workspace { grid-template-columns:1fr; } .sidebar { grid-template-columns:1fr 1fr; } .sidebar .card:first-child,.sidebar .card:last-child { grid-column:1 / -1; } }
+    @media (max-width:800px) { .topbar,main { padding-left:16px; padding-right:16px; } .topbar .privacy { display:none; } .hero { padding-top:27px; } .dropzone { flex-wrap:wrap; } .file-button { margin-left:0; } .workspace { grid-template-columns:1fr; } .sidebar { grid-template-columns:1fr 1fr; } .sidebar .card:first-child,.sidebar .card:last-child { grid-column:1 / -1; } #filesPanel { grid-template-columns:1fr; } .files { max-height:340px; } textarea { min-height:320px; } }
     @media (max-width:500px) { .sidebar { grid-template-columns:1fr; } .sidebar .card:first-child,.sidebar .card:last-child { grid-column:auto; } .summary { align-items:flex-start; flex-direction:column; } .chapter-row { padding:11px 13px; } }
   </style>
 </head>
@@ -79,23 +84,27 @@
     <section id="workspace" class="workspace hidden">
       <aside class="sidebar">
         <section class="card"><div class="book-name" id="bookName"></div><div class="stat-grid"><div class="stat"><strong id="includedWords">—</strong><span>words included</span></div><div class="stat"><strong id="fileCount">—</strong><span>reading files</span></div></div></section>
-        <section class="card"><div class="card-title"><h2>Primary chapter level</h2><span class="eyebrow" id="depthLabel"></span></div><div class="control-body"><div class="depth-readout"><span>Keep through level</span><b id="depthValue">1</b></div><input id="depthSlider" type="range" min="1" max="1" value="1"><p class="help">Choose how far down the contents hierarchy a chapter should go. Deeper sections will be folded into the selected parent when exported.</p></div></section>
+        <section class="card"><div class="card-title"><h2>Primary chapter level</h2><span class="eyebrow" id="depthLabel"></span></div><div class="control-body"><div class="depth-readout"><span>Keep through level</span><b id="depthValue">1</b></div><input id="depthSlider" type="range" min="1" max="1" value="1"><p class="help">Choose how far down a nested contents hierarchy should go. Deeper sections fold into the selected parent.</p><div id="flatControls" class="hidden"><hr><div class="depth-readout"><span>Target chapters</span><b id="targetValue">—</b></div><input id="targetSlider" type="range" min="1" max="1" value="1"><p class="help">This book has a flat contents list. Adjacent sections are combined into no more than this many e-reader chapters.</p></div></div></section>
         <section class="card"><div class="card-title"><h2>Export for e-reader</h2></div><div class="control-body"><button id="exportButton" class="primary" disabled>Download squished EPUB</button><p class="export-note">Creates a new file. It shortens the EPUB navigation and removes folded files from the reading spine after appending their contents to the parent.</p></div></section>
       </aside>
       <div class="content">
-        <section class="summary"><div><h2 id="summaryTitle">Chapter word count</h2><p id="summaryDescription">Counts follow the selected chapter level.</p></div><div class="total" id="totalWords">—</div></section>
-        <section class="card chapter-table"><div class="card-title"><h2>Reading breakdown</h2><span class="eyebrow" id="chapterCount"></span></div><div id="chapters"></div></section>
-        <section class="card"><div class="card-title"><h2>Included reading files</h2><button id="includeAll" class="secondary">Include all</button></div><div id="files" class="files"></div></section>
-        <section class="card"><div class="editor-head editor"><strong id="editorName">Select a reading file</strong><span id="editorCount"></span></div><div class="editor"><textarea id="textEditor" disabled placeholder="Select a file above to inspect the text counted for it. You can remove footnotes, bibliography, or any other text here; this only changes the count, never your original EPUB."></textarea><p class="help">This is the text used for word counts. Changes here do not alter the exported EPUB; exclude a whole file with its checkbox when appropriate.</p></div></section>
-        <section class="card"><div class="card-title"><h2>Contents preview</h2><span class="eyebrow">struck items fold into parent</span></div><div id="tocPreview" class="toc"></div></section>
+        <nav class="workspace-tabs" aria-label="Workspace"><button class="tab-button active" data-tab="overview">Overview</button><button class="tab-button" data-tab="files">Files &amp; text</button></nav>
+        <div id="overviewPanel">
+          <section class="summary"><div><h2 id="summaryTitle">Chapter word count</h2><p id="summaryDescription">Counts follow the selected chapter level.</p></div><div class="total" id="totalWords">—</div></section>
+          <section class="card chapter-table"><div class="card-title"><h2>Reading breakdown</h2><span class="eyebrow" id="chapterCount"></span></div><div id="chapters"></div></section>
+          <section class="card"><div class="card-title"><h2>Contents preview</h2><span class="eyebrow">struck items fold into parent</span></div><div id="tocPreview" class="toc"></div></section>
+        </div>
+        <div id="filesPanel" class="hidden">
+          <section class="card"><div class="card-title"><h2>Included reading files</h2><span><button id="excludeAll" class="secondary">Exclude all</button> <button id="includeAll" class="secondary">Include all</button></span></div><div id="files" class="files"></div></section>
+          <section class="card"><div class="editor-head editor"><strong id="editorName">Select a reading file</strong><span id="editorCount"></span></div><div class="editor"><textarea id="textEditor" disabled placeholder="Select a file above to inspect the text counted for it. You can remove footnotes, bibliography, or any other text here; this only changes the count, never your original EPUB."></textarea><p class="help">This is the text used for word counts. Changes here do not alter the exported EPUB; exclude a whole file with its checkbox when appropriate.</p></div></section>
+        </div>
       </div>
     </section>
   </main>
   <script>
   (() => {
     const $ = id => document.getElementById(id);
-    const state = { zip:null, fileName:"book.epub", opfPath:"", opfText:"", base:"", manifest:new Map(), spine:[], nav:[], navPath:"", navKind:"", depth:1, maxDepth:1, selected:null };
-    const decoder = new TextDecoder();
+    const state = { zip:null, fileName:"book.epub", opfPath:"", opfText:"", base:"", manifest:new Map(), spine:[], nav:[], anchors:[], navPath:"", navKind:"", depth:1, maxDepth:1, targetCount:1, baseCount:1, selected:null, activeTab:"overview" };
     const cleanPath = path => {
       const parts = [];
       path.replace(/\\/g,"/").split("/").forEach(part => { if (!part || part === ".") return; if (part === "..") parts.pop(); else parts.push(part); });
@@ -138,35 +147,69 @@
     function flatten(nodes, out=[]) { nodes.forEach(node => { out.push(node); flatten(node.children,out); }); return out; }
     function labelFor(path) { const matches = flatten(state.nav).filter(node => node.path === path); return matches.at(-1)?.label || path.split("/").at(-1); }
     function nodeFor(path) { return flatten(state.nav).filter(node => node.path === path).at(-1) || null; }
+    function mapNavigationToSpine() {
+      const indexes=new Map(state.spine.map(doc=>[doc.path,doc.index]));
+      state.anchors=flatten(state.nav).map(node=>({node,index:indexes.get(node.path)})).filter(anchor=>anchor.index !== undefined).sort((a,b)=>a.index-b.index || a.node.depth-b.node.depth);
+    }
+    function sectionFor(doc) {
+      return nodeFor(doc.path) || [...state.anchors].reverse().find(anchor=>anchor.index <= doc.index)?.node || state.anchors[0]?.node || null;
+    }
     function primaryFor(doc) {
-      let node = nodeFor(doc.path);
+      let node = sectionFor(doc);
       if (!node) return null;
       while (node.parent && node.depth > state.depth) node = node.parent;
       return node;
     }
     function includedDocs() { return state.spine.filter(doc => doc.included); }
     function docWords(doc) { return words(doc.override ?? doc.text); }
-    function groupedDocs() {
+    function baseGroups(docs=state.spine) {
       const groups = new Map();
-      includedDocs().forEach(doc => {
+      docs.forEach(doc => {
         const primary = primaryFor(doc), key = primary ? `nav:${primary.path}:${primary.depth}` : `file:${doc.path}`;
         if (!groups.has(key)) groups.set(key,{ label:primary?.label || doc.label, docs:[], node:primary });
         groups.get(key).docs.push(doc);
       });
-      return [...groups.values()].map(group => ({...group, count:group.docs.reduce((sum,doc)=>sum+docWords(doc),0)}));
+      return [...groups.values()];
+    }
+    function structuralGroups() {
+      const groups=baseGroups();
+      if (state.maxDepth !== 1 || state.targetCount >= groups.length) return groups;
+      const total=groups.reduce((sum,group)=>sum+group.docs.reduce((inner,doc)=>inner+words(doc.text),0),0);
+      const result=[], target=Math.max(1,total/state.targetCount); let bucket=[], bucketWords=0;
+      groups.forEach((group,index) => {
+        const groupWords=group.docs.reduce((sum,doc)=>sum+words(doc.text),0);
+        if (bucket.length && result.length < state.targetCount-1 && bucketWords + groupWords > target && groups.length-index >= state.targetCount-result.length) {
+          result.push(makeCombinedGroup(bucket)); bucket=[]; bucketWords=0;
+        }
+        bucket.push(group); bucketWords+=groupWords;
+      });
+      if (bucket.length) result.push(makeCombinedGroup(bucket));
+      return result;
+    }
+    function makeCombinedGroup(groups) {
+      const first=groups[0];
+      return { label:first.label, docs:groups.flatMap(group=>group.docs), node:first.node, combined:groups.length > 1, sourceGroups:groups };
+    }
+    function displayGroups() {
+      return structuralGroups().map(group => {
+        const total=group.docs.reduce((sum,doc)=>sum+docWords(doc),0), included=group.docs.filter(doc=>doc.included);
+        return {...group, total, count:included.reduce((sum,doc)=>sum+docWords(doc),0), includedFiles:included.length};
+      });
     }
     function render() {
-      const total = includedDocs().reduce((sum,doc)=>sum+docWords(doc),0), groups = groupedDocs();
+      const total = includedDocs().reduce((sum,doc)=>sum+docWords(doc),0), groups = displayGroups();
       $("includedWords").textContent = number(total); $("fileCount").textContent = number(includedDocs().length); $("totalWords").textContent = number(total);
       $("depthValue").textContent = state.depth; $("depthLabel").textContent = state.maxDepth > 1 ? `of ${state.maxDepth}` : "flat contents";
-      $("depthSlider").value = state.depth; $("chapterCount").textContent = `${groups.length} group${groups.length === 1 ? "" : "s"}`;
-      $("chapters").innerHTML = groups.length ? groups.map((group,index) => `<div class="chapter-row"><span class="chapter-bar" style="background:hsl(${245 + (index*23)%75} 75% 82%)"></span><div><div class="chapter-name" title="${escapeHtml(group.label)}">${escapeHtml(group.label)}</div><div class="chapter-detail">${group.docs.length} reading file${group.docs.length === 1 ? "" : "s"}</div></div><div class="chapter-count">${number(group.count)}</div></div>`).join("") : '<div class="empty">No reading files are included.</div>';
-      $("files").innerHTML = state.spine.map((doc,index) => `<label class="file-row ${state.selected === doc ? "active" : ""}" data-index="${index}"><input type="checkbox" ${doc.included ? "checked" : ""} aria-label="Include ${escapeHtml(doc.label)}"><span class="file-label" title="${escapeHtml(doc.path)}">${escapeHtml(doc.label)}</span><span class="file-count">${number(docWords(doc))}</span></label>`).join("");
+      $("depthSlider").value = state.depth; $("chapterCount").textContent = `${groups.length} chapter${groups.length === 1 ? "" : "s"}`;
+      $("flatControls").classList.toggle("hidden",state.maxDepth !== 1 || state.baseCount < 2); $("targetSlider").max=state.baseCount; $("targetSlider").value=state.targetCount; $("targetValue").textContent=state.targetCount;
+      $("chapters").innerHTML = groups.length ? groups.map((group,index) => { const status=group.includedFiles ? (group.includedFiles === group.docs.length ? "" : "partial") : "excluded"; const count=group.includedFiles === group.docs.length ? number(group.count) : `<span class="included-count">${number(group.count)}</span> <span class="chapter-detail">/ ${number(group.total)}</span>`; return `<div class="chapter-row ${status}"><span class="chapter-bar" style="background:hsl(${245 + (index*23)%75} 75% 82%)"></span><div><div class="chapter-name" title="${escapeHtml(group.label)}">${escapeHtml(group.label)}</div><div class="chapter-detail">${group.includedFiles} of ${group.docs.length} file${group.docs.length === 1 ? "" : "s"} included${group.combined ? " · combined" : ""}</div></div><div class="chapter-count">${count}</div></div>`; }).join("") : '<div class="empty">No reading files are included.</div>';
+      $("files").innerHTML = state.spine.map((doc,index) => `<div class="file-row ${state.selected === doc ? "active" : ""}" data-index="${index}" role="button" tabindex="0"><input type="checkbox" ${doc.included ? "checked" : ""} aria-label="Include ${escapeHtml(doc.label)}"><span class="file-label" title="${escapeHtml(doc.path)}">${escapeHtml(doc.label)}</span><span class="file-count">${number(docWords(doc))}</span></div>`).join("");
       document.querySelectorAll(".file-row").forEach(row => row.addEventListener("click", event => {
         const doc = state.spine[Number(row.dataset.index)];
-        if (event.target.type === "checkbox") doc.included = event.target.checked;
+        if (event.target.type === "checkbox") return;
         state.selected = doc; updateEditor(); render();
       }));
+      document.querySelectorAll(".file-row input").forEach(input => input.addEventListener("change",event => { event.stopPropagation(); state.spine[Number(event.target.closest(".file-row").dataset.index)].included=event.target.checked; render(); }));
       renderToc();
     }
     function updateEditor() {
@@ -176,14 +219,15 @@
     }
     function escapeHtml(value) { const el=document.createElement("span"); el.textContent=value; return el.innerHTML; }
     function renderToc() {
+      const groups=structuralGroups(), flatCombined=state.maxDepth === 1 && state.targetCount < state.baseCount;
       const tree = nodes => `<ul>${nodes.map(node => `<li class="${node.depth <= state.depth ? "keep" : "cut"}">${escapeHtml(node.label)}${node.children.length ? tree(node.children) : ""}</li>`).join("")}</ul>`;
-      $("tocPreview").innerHTML = state.nav.length ? tree(state.nav) : '<div class="empty">This EPUB has no usable navigation document. Word counts still use its reading order.</div>';
+      $("tocPreview").innerHTML = !state.nav.length ? '<div class="empty">This EPUB has no usable navigation document. Word counts still use its reading order.</div>' : flatCombined ? `<ul>${groups.map(group=>`<li class="keep">${escapeHtml(group.label)} <span class="chapter-detail">· ${group.docs.length} files</span></li>`).join("")}</ul>` : tree(state.nav);
     }
     async function openBook(file) {
       clearNotice(); $("workspace").classList.add("hidden"); $("loading").classList.remove("hidden");
       try {
         if (!window.JSZip) throw new Error("The EPUB reader library did not load. Check your internet connection and try again.");
-        state.zip = await JSZip.loadAsync(file); state.fileName=file.name; state.manifest.clear(); state.spine=[]; state.nav=[]; state.selected=null;
+        state.zip = await JSZip.loadAsync(file); state.fileName=file.name; state.manifest.clear(); state.spine=[]; state.nav=[]; state.anchors=[]; state.selected=null;
         const container = xml(await readEntry("META-INF/container.xml"),"EPUB container"), rootfile=container.querySelector("rootfile");
         if (!rootfile) throw new Error("This file is not a standard EPUB: META-INF/container.xml has no rootfile.");
         state.opfPath=cleanPath(rootfile.getAttribute("full-path")); state.base=directoryOf(state.opfPath); state.opfText=await readEntry(state.opfPath);
@@ -208,9 +252,10 @@
         for (const ref of refs) {
           const item=state.manifest.get(ref.getAttribute("idref")); if (!item || !/(xhtml|html|xml)/i.test(item.media + item.path)) continue;
           const raw=await readEntry(item.path), text=textFromMarkup(raw);
-          state.spine.push({ id:item.id, path:item.path, raw, text, override:null, included:true, label:labelFor(item.path) });
+          state.spine.push({ id:item.id, path:item.path, raw, text, override:null, included:true, label:labelFor(item.path), index:state.spine.length });
         }
         if (!state.spine.length) throw new Error("No XHTML or HTML reading files were found in this EPUB's spine.");
+        mapNavigationToSpine(); state.baseCount=baseGroups().length; state.targetCount=Math.min(18,state.baseCount);
         $("bookName").textContent=file.name.replace(/\.epub$/i,""); $("exportButton").disabled=!state.nav.length; $("workspace").classList.remove("hidden"); render(); updateEditor();
         if (!state.nav.length) showNotice("This EPUB has no readable table of contents, so the chapter breakdown uses individual reading files and remapping is unavailable.");
       } catch (error) { showNotice(error.message || "The EPUB could not be opened."); console.error(error); }
@@ -222,20 +267,23 @@
         const parts=splitHref(value), absolute=resolve(fromPath,parts.path); element.setAttribute(attribute,relative(toPath,absolute)+parts.fragment);
       }));
     }
-    function trimXhtmlNav(source) {
+    function rebuildXhtmlNav(source,groups) {
       const doc=new DOMParser().parseFromString(source,"text/html"), toc=doc.querySelector('nav[epub\\:type~="toc"], nav[role="doc-toc"], nav#toc'); if (!toc) return source;
-      const cut=(list,level) => directChildren(list,"li").forEach(li => directChildren(li,"ol").concat(directChildren(li,"ul")).forEach(child => { if (level >= state.depth) child.remove(); else cut(child,level+1); }));
-      const list=toc.querySelector(":scope > ol, :scope > ul") || toc.querySelector("ol,ul"); if (list) cut(list,1);
+      let list=toc.querySelector(":scope > ol, :scope > ul") || toc.querySelector("ol,ul");
+      if (!list) { list=doc.createElement("ol"); toc.appendChild(list); } list.innerHTML="";
+      groups.forEach(group => { const li=doc.createElement("li"), a=doc.createElement("a"); a.href=relative(state.navPath,group.docs[0].path); a.textContent=group.label; li.appendChild(a); list.appendChild(li); });
       return "<!DOCTYPE html>\n" + doc.documentElement.outerHTML;
     }
-    function trimNcx(source) {
-      const doc=xml(source,"NCX navigation"), cut=(parent,level) => directChildren(parent,"navPoint").forEach(point => { if (level >= state.depth) directChildren(point,"navPoint").forEach(child=>child.remove()); else cut(point,level+1); });
-      const map=doc.querySelector("navMap"); if (map) cut(map,1); return new XMLSerializer().serializeToString(doc);
+    function rebuildNcx(source,groups) {
+      const doc=xml(source,"NCX navigation"), map=doc.querySelector("navMap"); if (!map) return source;
+      while(map.firstChild) map.removeChild(map.firstChild); const ns=map.namespaceURI;
+      groups.forEach((group,index) => { const point=doc.createElementNS(ns,"navPoint"), label=doc.createElementNS(ns,"navLabel"), text=doc.createElementNS(ns,"text"), content=doc.createElementNS(ns,"content"); point.setAttribute("id",`chapterwise-${index+1}`); point.setAttribute("playOrder",String(index+1)); text.textContent=group.label; label.appendChild(text); content.setAttribute("src",relative(state.navPath,group.docs[0].path)); point.append(label,content); map.appendChild(point); });
+      return new XMLSerializer().serializeToString(doc);
     }
     async function exportBook() {
       try {
-        const opf=xml(state.opfText,"EPUB package"), spine=opf.querySelector("spine"), folded=new Set(), plan=new Map();
-        state.spine.forEach(doc => { const source=nodeFor(doc.path), target=primaryFor(doc); if (source && target && source.depth > state.depth && target.path && target.path !== doc.path) { if (!plan.has(target.path)) plan.set(target.path,[]); plan.get(target.path).push(doc); folded.add(doc.id); } });
+        const opf=xml(state.opfText,"EPUB package"), spine=opf.querySelector("spine"), folded=new Set(), plan=new Map(), groups=structuralGroups();
+        groups.forEach(group => { const [target,...children]=group.docs; if (!target || !children.length) return; plan.set(target.path,children); children.forEach(child=>folded.add(child.id)); });
         for (const [targetPath,children] of plan) {
           const target=state.spine.find(doc=>doc.path===targetPath); if (!target) continue;
           const targetDoc=new DOMParser().parseFromString(target.raw,"text/html"), targetBody=targetDoc.body; if (!targetBody) continue;
@@ -244,7 +292,7 @@
         }
         [...spine.querySelectorAll(":scope > itemref")].forEach(ref => { if (folded.has(ref.getAttribute("idref"))) ref.remove(); });
         state.zip.file(state.opfPath,new XMLSerializer().serializeToString(opf));
-        if (state.navPath) { const original=await readEntry(state.navPath); state.zip.file(state.navPath,state.navKind === "ncx" ? trimNcx(original) : trimXhtmlNav(original)); }
+        if (state.navPath) { const original=await readEntry(state.navPath); state.zip.file(state.navPath,state.navKind === "ncx" ? rebuildNcx(original,groups) : rebuildXhtmlNav(original,groups)); }
         // EPUB requires this sentinel entry to remain uncompressed. JSZip keeps the
         // existing entry order, while this explicit setting preserves its format.
         state.zip.file("mimetype","application/epub+zip",{compression:"STORE"});
@@ -256,9 +304,12 @@
     ["dragleave","drop"].forEach(type=>$("dropzone").addEventListener(type,event=>{event.preventDefault(); $("dropzone").classList.remove("dragging");}));
     $("dropzone").addEventListener("drop",event=>event.dataTransfer.files[0] && openBook(event.dataTransfer.files[0]));
     $("depthSlider").addEventListener("input",event=>{state.depth=Number(event.target.value); render();});
+    $("targetSlider").addEventListener("input",event=>{state.targetCount=Number(event.target.value); render();});
     $("includeAll").addEventListener("click",()=>{state.spine.forEach(doc=>doc.included=true); render();});
+    $("excludeAll").addEventListener("click",()=>{state.spine.forEach(doc=>doc.included=false); render();});
     $("textEditor").addEventListener("input",event=>{if (!state.selected) return; state.selected.override=event.target.value; $("editorCount").textContent=`${number(docWords(state.selected))} words`; render();});
     $("exportButton").addEventListener("click",exportBook);
+    document.querySelectorAll(".tab-button").forEach(button=>button.addEventListener("click",()=>{state.activeTab=button.dataset.tab; $("overviewPanel").classList.toggle("hidden",state.activeTab !== "overview"); $("filesPanel").classList.toggle("hidden",state.activeTab !== "files"); document.querySelectorAll(".tab-button").forEach(tab=>tab.classList.toggle("active",tab === button));}));
   })();
   </script>
 </body>
