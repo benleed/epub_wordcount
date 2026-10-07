@@ -1,12 +1,14 @@
 # Chapterwise
 
-Chapterwise is a static, browser-only tool for planning an EPUB reading session.
-Open a local EPUB to see its total word count and a word-count breakdown at the
-chapter level you choose. It can also generate a new EPUB with a simplified
-table of contents and sub-chapter files folded into their parent chapter.
+Chapterwise is a static, browser-only tool for planning a reading session.
+`index.html` opens a local EPUB to see its total word count and a word-count
+breakdown at the chapter level you choose; it can also generate a new EPUB with
+a simplified table of contents and sub-chapter files folded into their parent
+chapter. `pdf.html` does the same job for PDFs: it counts words per bookmark (or
+per chosen page range), reshapes the chapter list, and can add a cover image.
 
 The site is intended for GitHub Pages. There is no server, account, upload, or
-book storage: the EPUB is opened and processed in the browser.
+book storage: the book is opened and processed entirely in the browser.
 
 ## What it does
 
@@ -45,6 +47,10 @@ book storage: the EPUB is opened and processed in the browser.
    Test the result on the target e-reader before replacing a copy in your
    library.
 
+For PDFs, open `pdf.html` instead and follow the same shape of workflow: review
+the per-bookmark word counts, choose a chapter level (or define page-based
+chapters), and export either a rewritten outline or a copy with a cover.
+
 Edits in the text box deliberately affect only the displayed word count. They
 are a safe way to refine an estimate. The squished EPUB is structural: it
 merges complete reading files and does not try to infer which paragraphs inside
@@ -52,13 +58,15 @@ one file are footnotes or bibliography.
 
 ## Project layout
 
-- `index.html` — the application, styles, and all browser-side logic.
+- `index.html` — the EPUB application, styles, and all browser-side logic.
+- `pdf.html` — the PDF application (a separate import pipeline).
 - `legacy.html` — the former minimal word counter, retained for historical
   reference.
 
-The app has one runtime dependency, JSZip, loaded from cdnjs. GitHub Pages
-requires an internet connection for that library to load. No build step is
-needed.
+The EPUB tool has one runtime dependency, JSZip. The PDF tool adds pdf.js
+(reading text and bookmarks) and pdf-lib (writing the cover and bookmarks). All
+three are loaded from cdnjs, so GitHub Pages requires an internet connection for
+them to load. No build step is needed.
 
 ## EPUB implementation notes
 
@@ -81,14 +89,37 @@ is the book's opening file. Because malformed or unusually constructed EPUBs are
 common, keep the original and validate exported books in the e-reader that
 matters to you.
 
-## Future direction: PDFs
+## PDF support (`pdf.html`)
 
-PDF support is intentionally out of scope for the first version. A later
-addition should be a separate import pipeline: extract text, present an
-editable detected-outline/chapter map, report counts per selected chapter, and
-write repaired chapter markers where the PDF format and reader support it.
-Avoid treating PDFs as EPUBs; their page and outline model is fundamentally
-different.
+PDF support is a separate import pipeline, because the page and outline model is
+fundamentally different from EPUB; PDFs are never treated as EPUBs.
+
+- Reading uses pdf.js: it reads the bookmark (outline) tree, resolves each
+  entry's destination to a page, then extracts every page's text and counts words
+  with the same tokenizer as the EPUB tool.
+- Chapters come from the bookmarks. A page belongs to the deepest bookmark that
+  starts at or before it; anything before the first bookmark becomes "Front
+  matter". The **Keep through level** slider folds deeper bookmarks into their
+  parent, exactly like the EPUB tool's chapter level. For a flat bookmark list,
+  **Target chapters** combines adjacent bookmarks by length into a chosen number.
+- A PDF with no bookmarks falls back to a page-based chapter map: list chapter
+  start pages by hand (one per line, `page` or `page Title`) or leave it empty to
+  auto-split the pages into the target number of chapters.
+- Export writes a new file and never changes the original:
+  - **Download squished PDF** rewrites the PDF `/Outlines` to exactly the chapters
+    shown, using pdf-lib's low-level objects (there is no high-level outline API).
+  - **Add cover & download PDF** embeds a PNG/JPG and inserts it as page 1 with
+    `insertPage`, so the existing bookmarks and links are preserved. The
+    `native`/`contain`/`cover` fit, native page size (DPI), and explicit
+    width/height follow the same logic as the standalone `addcover.js`, but the
+    page is inserted into the loaded document instead of rebuilding it, which is
+    what keeps the original contents intact.
+
+PDF text extraction is an estimate, not a paginated-print pipeline: it follows
+the same tokenizer as the EPUB tool and can be refined with the per-page text
+editor. PDFs with a malformed cross-reference table may not load; repair them
+with qpdf first. Because reader support for rewritten outlines varies, validate an
+export in your own e-reader before replacing a copy in your library.
 
 ## Development / handoff notes
 

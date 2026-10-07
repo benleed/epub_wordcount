@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Private, browser-based PDF word counts, chapter planning, bookmark rewriting, and cover insertion.">
+  <title>Chapterwise — PDF reading planner</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" defer></script>
+  <style>
+    :root { --ink:#172033; --muted:#65718a; --line:#dbe1eb; --canvas:#f6f7fb; --card:#fff; --brand:#4f46e5; --brand-dark:#3730a3; --accent:#ecfdf5; --danger:#b42318; --shadow:0 18px 44px rgba(26,36,64,.10); }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--canvas); font:15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button,input,textarea,select { font:inherit; }
+    button { border:0; border-radius:9px; cursor:pointer; font-weight:700; padding:.68rem 1rem; }
+    button:disabled { cursor:not-allowed; opacity:.48; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; max-width:1240px; margin:auto; padding:19px 28px; }
+    .brand { display:flex; align-items:center; gap:10px; font-size:1.1rem; font-weight:850; letter-spacing:-.02em; }
+    .brand-mark { display:grid; place-items:center; width:31px; height:31px; color:#fff; background:linear-gradient(135deg,#6d5dfc,#3b82f6); border-radius:9px; box-shadow:0 5px 13px #4f46e552; }
+    .topnav { display:flex; gap:16px; align-items:center; }
+    .topnav a { color:var(--brand-dark); font-size:.85rem; font-weight:700; text-decoration:none; }
+    .topnav a:hover { text-decoration:underline; }
+    .privacy { color:var(--muted); font-size:.85rem; }
+    .privacy::before { content:"●"; color:#10b981; margin-right:6px; }
+    main { max-width:1240px; margin:0 auto; padding:10px 28px 48px; }
+    .hero { padding:42px 0 27px; max-width:790px; }
+    h1 { margin:0 0 13px; font-size:clamp(2.15rem,5vw,4.25rem); line-height:1.03; letter-spacing:-.055em; }
+    .hero p { font-size:1.13rem; color:var(--muted); margin:0; max-width:680px; }
+    .dropzone { display:flex; align-items:center; gap:20px; padding:27px; border:2px dashed #aeb8cc; background:linear-gradient(110deg,#fff,#f7f5ff); border-radius:18px; transition:.2s; box-shadow:var(--shadow); }
+    .dropzone.dragging { border-color:var(--brand); background:#f3f1ff; transform:translateY(-2px); }
+    .drop-icon { display:grid; place-items:center; flex:none; width:48px; height:48px; border-radius:13px; background:#e9e7ff; color:var(--brand); font-size:1.55rem; }
+    .dropzone strong { display:block; font-size:1.02rem; } .dropzone span { color:var(--muted); font-size:.9rem; }
+    .file-button { margin-left:auto; color:white; background:var(--brand); white-space:nowrap; } .file-button:hover { background:var(--brand-dark); }
+    #fileInput { display:none; }
+    .notice { margin:20px 0; padding:12px 15px; border-radius:10px; color:#8a2d1e; background:#fff4ed; border:1px solid #fed7aa; }
+    .hidden { display:none !important; }
+    .workspace { display:grid; grid-template-columns:minmax(250px,.85fr) minmax(420px,1.8fr); gap:21px; margin-top:28px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:15px; box-shadow:0 3px 10px rgba(26,36,64,.025); }
+    .card-title { display:flex; align-items:center; justify-content:space-between; padding:17px 19px; border-bottom:1px solid var(--line); }
+    .card-title h2 { margin:0; font-size:.92rem; letter-spacing:.01em; } .eyebrow { color:var(--muted); font-size:.77rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; }
+    .sidebar { display:grid; align-content:start; gap:18px; }
+    .book-name { padding:17px 19px 6px; overflow-wrap:anywhere; font-weight:750; }
+    .stat-grid { display:grid; grid-template-columns:1fr 1fr; padding:13px 19px 19px; gap:12px; }
+    .stat { padding:12px; background:#f7f8fc; border-radius:10px; } .stat strong { display:block; font-size:1.42rem; letter-spacing:-.045em; } .stat span { color:var(--muted); font-size:.76rem; }
+    .control-body { padding:17px 19px 19px; }
+    input[type=range] { width:100%; accent-color:var(--brand); }
+    .depth-readout { display:flex; justify-content:space-between; margin:0 0 7px; font-size:.9rem; } .depth-readout b { color:var(--brand); }
+    .help { margin:10px 0 0; color:var(--muted); font-size:.83rem; }
+    .primary { color:white; background:var(--brand); } .primary:hover { background:var(--brand-dark); }
+    .secondary { color:var(--brand-dark); background:#eeedff; } .secondary:hover { background:#e4e2ff; }
+    .block { width:100%; }
+    .export-note { margin:11px 0 0; color:var(--muted); font-size:.78rem; }
+    .content { min-width:0; display:grid; gap:18px; }
+    #filesPanel { display:grid; grid-template-columns:minmax(335px,.95fr) minmax(0,1.05fr); align-items:start; gap:18px; }
+    .workspace-tabs { display:flex; gap:5px; padding:5px; background:#e9ecf5; border-radius:11px; width:max-content; }
+    .tab-button { padding:.48rem .85rem; color:#64708a; background:transparent; border-radius:8px; font-size:.86rem; }
+    .tab-button.active { color:var(--ink); background:#fff; box-shadow:0 1px 4px #27325a1c; }
+    .summary { display:flex; justify-content:space-between; align-items:center; gap:15px; padding:18px 20px; background:linear-gradient(105deg,#24205f,#4338ca); color:white; border-radius:15px; box-shadow:var(--shadow); }
+    .summary h2 { margin:0; font-size:1.05rem; } .summary p { margin:3px 0 0; color:#d9d7ff; font-size:.85rem; }
+    .total { font-size:1.8rem; font-weight:850; letter-spacing:-.05em; white-space:nowrap; }
+    .chapter-table { overflow:hidden; }
+    .chapter-row { display:grid; grid-template-columns:31px minmax(0,1fr) auto; gap:12px; align-items:center; padding:13px 19px; border-bottom:1px solid #edf0f5; }
+    .chapter-row:last-child { border-bottom:0; } .chapter-row:hover { background:#fafaff; }
+    .chapter-row.excluded { opacity:.5; background:#fafafa; } .chapter-row.partial .chapter-count .included-count { color:#475569; } .excluded .chapter-name { color:#7b8497; text-decoration:line-through; }
+    .chapter-bar { width:5px; height:31px; border-radius:999px; background:#d9d6fe; } .chapter-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:680; }
+    .chapter-detail { color:var(--muted); font-size:.78rem; } .chapter-count { font-variant-numeric:tabular-nums; font-weight:800; }
+    .files { max-height:calc(100vh - 265px); min-height:340px; overflow:auto; }
+    .file-row { display:grid; grid-template-columns:28px minmax(0,1fr) auto; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid #edf0f5; cursor:pointer; }
+    .file-row:hover,.file-row.active { background:#f5f4ff; } .file-row input { accent-color:var(--brand); width:21px; height:21px; cursor:pointer; }
+    .file-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.87rem; } .file-count { color:var(--muted); font-size:.8rem; font-variant-numeric:tabular-nums; }
+    .editor { padding:17px 19px 19px; } .editor-head { display:flex; gap:12px; justify-content:space-between; align-items:baseline; margin-bottom:10px; } .editor-head strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .editor-head span { color:var(--muted); font-size:.81rem; white-space:nowrap; }
+    textarea { display:block; width:100%; min-height:calc(100vh - 255px); resize:vertical; padding:15px; color:#2d3549; background:#fbfcff; border:1px solid #cfd6e5; border-radius:9px; line-height:1.65; } textarea:focus { outline:3px solid #4f46e526; border-color:#8078ef; }
+    textarea.mini { min-height:96px; font-size:.85rem; }
+    .empty { padding:35px 20px; color:var(--muted); text-align:center; } .loading { padding:22px; color:var(--muted); }
+    .toc { padding:15px 18px 18px; max-height:280px; overflow:auto; } .toc ul { list-style:none; margin:0; padding-left:16px; border-left:1px solid #e3e6ef; } .toc > ul { padding-left:0; border:0; } .toc li { padding:3px 0; color:#4d5870; font-size:.88rem; } .toc li.keep { color:var(--ink); font-weight:700; } .toc li.cut { color:#98a2b3; text-decoration:line-through; }
+    hr { border:0; border-top:1px solid var(--line); margin:14px 0; }
+    .field { display:block; margin-bottom:10px; } .field > span { display:block; color:var(--muted); font-size:.8rem; margin-bottom:4px; }
+    .field input[type=file], .field select, .field input[type=number] { width:100%; padding:8px 10px; border:1px solid #cfd6e5; border-radius:8px; background:#fbfcff; }
+    .cover-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+    @media (max-width:800px) { .topbar,main { padding-left:16px; padding-right:16px; } .topnav .privacy { display:none; } .hero { padding-top:27px; } .dropzone { flex-wrap:wrap; } .file-button { margin-left:0; } .workspace { grid-template-columns:1fr; } .sidebar { grid-template-columns:1fr 1fr; } .sidebar .card:first-child,.sidebar .card:last-child { grid-column:1 / -1; } #filesPanel { grid-template-columns:1fr; } .files { max-height:340px; } textarea { min-height:320px; } }
+    @media (max-width:500px) { .sidebar { grid-template-columns:1fr; } .sidebar .card:first-child,.sidebar .card:last-child { grid-column:auto; } .summary { align-items:flex-start; flex-direction:column; } .chapter-row { padding:11px 13px; } .cover-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="brand"><span class="brand-mark">⌁</span>Chapterwise</div><nav class="topnav"><a href="index.html">EPUB tool</a><span class="privacy">Your book stays in this browser</span></nav></header>
+  <main>
+    <section class="hero"><h1>Plan the next chapter,<br>not just the next page.</h1><p>Open a PDF to get a useful reading word count, inspect its bookmarks, reshape the chapter list, and add a cover image — all without uploading anything.</p></section>
+    <label class="dropzone" id="dropzone" for="fileInput">
+      <span class="drop-icon">↥</span><span><strong>Drop a PDF here</strong><span>or choose a file from this device · nothing is uploaded</span></span><span class="file-button">Choose PDF</span>
+    </label>
+    <input id="fileInput" type="file" accept=".pdf,application/pdf">
+    <div id="notice" class="notice hidden" role="alert"></div>
+    <div id="loading" class="loading hidden">Reading the PDF…</div>
+    <section id="workspace" class="workspace hidden">
+      <aside class="sidebar">
+        <section class="card"><div class="book-name" id="bookName"></div><div class="stat-grid"><div class="stat"><strong id="includedWords">—</strong><span>words included</span></div><div class="stat"><strong id="pageCount">—</strong><span>pages included</span></div></div></section>
+        <section class="card">
+          <div class="card-title"><h2>Chapter structure</h2><span class="eyebrow" id="depthLabel"></span></div>
+          <div class="control-body">
+            <div id="outlineControls">
+              <div class="depth-readout"><span>Keep through level</span><b id="depthValue">1</b></div>
+              <input id="depthSlider" type="range" min="1" max="1" value="1">
+              <p class="help">Deeper bookmarks fold into the selected parent, just like the EPUB tool.</p>
+            </div>
+            <div id="flatControls" class="hidden">
+              <hr>
+              <div class="depth-readout"><span>Target chapters</span><b id="targetValue">—</b></div>
+              <input id="targetSlider" type="range" min="1" max="1" value="1">
+              <p class="help" id="flatHelp"></p>
+            </div>
+            <div id="manualControls" class="hidden">
+              <hr>
+              <label class="field"><span>Chapter start pages (one per line: <em>page</em> or <em>page Title</em>)</span><textarea id="breakInput" class="mini" placeholder="1 Title Page&#10;12 Chapter One&#10;30 Chapter Two"></textarea></label>
+              <p class="help">This PDF has no bookmarks. List page numbers to make chapters by hand, or leave it empty to auto-split.</p>
+            </div>
+          </div>
+        </section>
+        <section class="card">
+          <div class="card-title"><h2>Cover image</h2><span class="eyebrow">optional</span></div>
+          <div class="control-body">
+            <label class="field"><span>Image (PNG or JPG)</span><input id="coverInput" type="file" accept="image/png,image/jpeg"></label>
+            <div class="cover-grid">
+              <label class="field"><span>Fit</span><select id="coverFit"><option value="native">native (image size)</option><option value="contain">contain (whole image)</option><option value="cover">cover (fill, crop)</option></select></label>
+              <label class="field"><span>DPI (native)</span><input id="coverDpi" type="number" value="300" min="30" step="1"></label>
+              <label class="field"><span>Width (in)</span><input id="coverWidth" type="number" min="0" step="0.01" placeholder="auto"></label>
+              <label class="field"><span>Height (in)</span><input id="coverHeight" type="number" min="0" step="0.01" placeholder="auto"></label>
+            </div>
+            <p class="help">The cover is inserted as the first page. Existing bookmarks and links are preserved.</p>
+          </div>
+        </section>
+        <section class="card">
+          <div class="card-title"><h2>Export</h2></div>
+          <div class="control-body">
+            <button id="squishButton" class="primary block" disabled>Download squished PDF</button>
+            <button id="coverButton" class="secondary block" style="margin-top:8px" disabled>Add cover &amp; download PDF</button>
+            <p class="export-note">The original file is never changed. “Squished” rewrites the PDF bookmarks to the chapters shown here.</p>
+          </div>
+        </section>
+      </aside>
+      <div class="content">
+        <nav class="workspace-tabs" aria-label="Workspace"><button class="tab-button active" data-tab="overview">Overview</button><button class="tab-button" data-tab="pages">Pages &amp; text</button></nav>
+        <div id="overviewPanel">
+          <section class="summary"><div><h2 id="summaryTitle">Chapter word count</h2><p id="summaryDescription">Counts follow the selected chapter structure.</p></div><div class="total" id="totalWords">—</div></section>
+          <section class="card chapter-table"><div class="card-title"><h2>Reading breakdown</h2><span class="eyebrow" id="chapterCount"></span></div><div id="chapters"></div></section>
+          <section class="card"><div class="card-title"><h2>Contents preview</h2><span class="eyebrow">bookmarks to keep in the export</span></div><div id="tocPreview" class="toc"></div></section>
+        </div>
+        <div id="filesPanel" class="hidden">
+          <section class="card"><div class="card-title"><h2>Pages</h2><span><button id="excludeAll" class="secondary">Exclude all</button> <button id="includeAll" class="secondary">Include all</button></span></div><div id="files" class="files"></div></section>
+          <section class="card"><div class="editor-head editor"><strong id="editorName">Select a page</strong><span id="editorCount"></span></div><div class="editor"><textarea id="textEditor" disabled placeholder="Select a page above to inspect the text counted for it. You can remove footnotes, bibliography, or any other text here; this only changes the count, never your original PDF."></textarea><p class="help">This is the text used for word counts. Changes here do not alter the exported PDF; exclude a whole page with its checkbox when appropriate.</p></div></section>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+  (() => {
+    const $ = id => document.getElementById(id);
+    const number = n => new Intl.NumberFormat().format(n);
+    const words = text => (text.match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu) || []).length;
+    const state = { pdf:null, fileBytes:null, fileName:"book.pdf", pages:[], outline:[], flat:[], depth:1, maxDepth:1, targetCount:18, baseCount:1, manual:false, breaks:[], selected:null, activeTab:"overview", cover:null };
+    function showNotice(message) { $("notice").textContent = message; $("notice").classList.remove("hidden"); }
+    function clearNotice() { $("notice").classList.add("hidden"); }
+    function escapeHtml(value) { const el = document.createElement("span"); el.textContent = value; return el.innerHTML; }
+    function download(bytes, name) { const blob = new Blob([bytes], { type:"application/pdf" }), link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1500); }
+    const baseName = () => state.fileName.replace(/\.pdf$/i, "");
+
+    // ---- tree helpers (mirror the EPUB tool) ----
+    function setParents(nodes, parent=null) { nodes.forEach(node => { node.parent = parent; setParents(node.children, node); }); }
+    function flatten(nodes, out=[]) { nodes.forEach(node => { out.push(node); flatten(node.children, out); }); return out; }
+    const pageWords = page => words(page.override ?? page.text);
+
+    // ---- pdf.js reading ----
+    async function pageForDest(pdf, dest) {
+      let explicit = dest;
+      if (typeof dest === "string") { try { explicit = await pdf.getDestination(dest); } catch (error) { return null; } }
+      if (!Array.isArray(explicit) || !explicit.length) return null;
+      const ref = explicit[0];
+      try {
+        if (ref && typeof ref === "object") return (await pdf.getPageIndex(ref)) + 1;
+        if (Number.isInteger(ref)) return ref + 1;
+      } catch (error) { return null; }
+      return null;
+    }
+    async function buildOutline(pdf, nodes, depth) {
+      const out = [];
+      for (const node of nodes) {
+        const page = await pageForDest(pdf, node.dest);
+        const children = node.items && node.items.length ? await buildOutline(pdf, node.items, depth + 1) : [];
+        out.push({ label:(node.title || "Untitled section").trim(), page, depth, children, parent:null });
+      }
+      return out;
+    }
+    function fillMissingPages() {
+      if (!state.pages.length) return;
+      const last = state.pages.length;
+      for (let i = state.flat.length - 1; i >= 0; i--) {
+        if (state.flat[i].page == null) {
+          const descendant = flatten(state.flat[i].children).find(child => child.page != null);
+          if (descendant) state.flat[i].page = descendant.page;
+        }
+      }
+      let previous = 1;
+      for (const node of state.flat) { if (node.page == null) node.page = previous; else previous = node.page; }
+      for (const node of state.flat) node.page = Math.min(Math.max(1, node.page), last);
+    }
+    async function openPdf(file) {
+      clearNotice(); $("workspace").classList.add("hidden"); $("loading").classList.remove("hidden"); $("loading").textContent = "Reading the PDF…";
+      try {
+        if (!window.pdfjsLib) throw new Error("The PDF reader library did not load. Check your internet connection and try again.");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        const buffer = await file.arrayBuffer();
+        state.fileBytes = new Uint8Array(buffer);
+        state.fileName = file.name; state.pages = []; state.outline = []; state.flat = []; state.selected = null; state.cover = null; state.breaks = []; state.depth = 1;
+        $("coverInput").value = ""; $("breakInput").value = "";
+        const task = pdfjsLib.getDocument({ data: state.fileBytes.slice(0), ignoreEncryption:true, isEvalSupported:false });
+        const pdf = await task.promise; state.pdf = pdf;
+        for (let n = 1; n <= pdf.numPages; n++) {
+          const page = await pdf.getPage(n);
+          const content = await page.getTextContent();
+          let text = "";
+          for (const item of content.items) text += item.str + (item.hasEOL ? "\n" : " ");
+          text = text.replace(/[ \t\u00a0]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+          state.pages.push({ n, text, override:null, included:true });
+          page.cleanup();
+          if (n % 10 === 0) $("loading").textContent = `Reading the PDF… page ${n} of ${pdf.numPages}`;
+        }
+        let raw = null;
+        try { raw = await pdf.getOutline(); } catch (error) { raw = null; }
+        state.outline = raw ? await buildOutline(pdf, raw, 1) : [];
+        setParents(state.outline);
+        state.flat = flatten(state.outline);
+        fillMissingPages();
+        state.manual = !state.outline.length;
+        state.maxDepth = Math.max(1, ...state.flat.map(node => node.depth));
+        state.depth = 1;
+        state.baseCount = Math.max(1, baseGroups().length);
+        state.targetCount = state.manual ? Math.max(1, Math.min(18, state.pages.length)) : Math.max(1, Math.min(18, state.baseCount));
+        $("bookName").textContent = file.name.replace(/\.pdf$/i, "");
+        $("workspace").classList.remove("hidden");
+        render(); updateEditor();
+        if (state.manual) showNotice("This PDF has no bookmarks. Define chapter start pages on the left, or auto-split into a target number of chapters; the export writes those as bookmarks.");
+      } catch (error) { showNotice(error.message || "The PDF could not be opened."); console.error(error); }
+      finally { $("loading").classList.add("hidden"); }
+    }
+
+    // ---- grouping ----
+    function nodeForPage(pageNumber) {
+      let best = null;
+      for (const node of state.flat) {
+        if (node.page <= pageNumber && (!best || node.page > best.page || (node.page === best.page && node.depth > best.depth))) best = node;
+      }
+      return best;
+    }
+    function primaryFor(node) { while (node && node.parent && node.depth > state.depth) node = node.parent; return node; }
+    function baseGroups() {
+      const groups = new Map(), front = { label:"Front matter", node:null, pages:[] };
+      state.pages.forEach(page => {
+        const primary = primaryFor(nodeForPage(page.n)), key = primary || front;
+        if (!groups.has(key)) groups.set(key, key === front ? front : { label:primary.label, node:primary, pages:[] });
+        groups.get(key).pages.push(page);
+      });
+      return [...groups.values()];
+    }
+    function makeRange(pages) { return { label:`Pages ${pages[0].n}–${pages[pages.length - 1].n}`, node:null, pages }; }
+    function autoSplit() {
+      const count = Math.max(1, Math.min(state.targetCount, state.pages.length)), total = state.pages.reduce((sum, page) => sum + pageWords(page), 0), target = total / count, groups = [];
+      let bucket = [], bucketWords = 0;
+      state.pages.forEach((page, index) => {
+        const weight = pageWords(page);
+        if (bucket.length && groups.length < count - 1 && bucketWords + weight > target && state.pages.length - index >= count - groups.length) {
+          groups.push(makeRange(bucket)); bucket = []; bucketWords = 0;
+        }
+        bucket.push(page); bucketWords += weight;
+      });
+      if (bucket.length) groups.push(makeRange(bucket));
+      return groups;
+    }
+    function manualGroups() {
+      if (!state.breaks.length) return autoSplit();
+      const breaks = [...state.breaks].sort((a, b) => a.page - b.page).map(br => ({ ...br, page:Math.min(Math.max(1, br.page), state.pages.length) })), groups = [];
+      if (breaks[0].page > 1) groups.push({ label:"Front matter", node:null, pages:state.pages.slice(0, breaks[0].page - 1) });
+      breaks.forEach((br, index) => {
+        const start = br.page, end = index + 1 < breaks.length ? breaks[index + 1].page - 1 : state.pages.length;
+        if (end >= start) groups.push({ label: br.label || `Chapter ${index + 1}`, node:null, pages:state.pages.slice(start - 1, end) });
+      });
+      return groups;
+    }
+    function mergeGroups(groups) { const first = groups[0]; return { label:first.label, node:first.node, pages:groups.flatMap(group => group.pages), combined:groups.length > 1 }; }
+    function combineGroups(groups, count) {
+      const total = groups.reduce((sum, group) => sum + group.pages.reduce((inner, page) => inner + pageWords(page), 0), 0), target = total / count, result = [];
+      let bucket = [], bucketWords = 0;
+      groups.forEach((group, index) => {
+        const weight = group.pages.reduce((inner, page) => inner + pageWords(page), 0);
+        if (bucket.length && result.length < count - 1 && bucketWords + weight > target && groups.length - index >= count - result.length) {
+          result.push(mergeGroups(bucket)); bucket = []; bucketWords = 0;
+        }
+        bucket.push(group); bucketWords += weight;
+      });
+      if (bucket.length) result.push(mergeGroups(bucket));
+      return result;
+    }
+    function structuralGroups() {
+      if (state.manual) return manualGroups();
+      const groups = baseGroups();
+      if (state.maxDepth !== 1 || state.targetCount >= groups.length) return groups;
+      return combineGroups(groups, state.targetCount);
+    }
+    function displayGroups() {
+      return structuralGroups().map(group => {
+        const total = group.pages.reduce((sum, page) => sum + pageWords(page), 0), included = group.pages.filter(page => page.included);
+        return { ...group, total, count:included.reduce((sum, page) => sum + pageWords(page), 0), includedPages:included.length };
+      });
+    }
+
+    // ---- rendering ----
+    function render() {
+      const groups = displayGroups(), includedPages = state.pages.filter(page => page.included), total = includedPages.reduce((sum, page) => sum + pageWords(page), 0);
+      $("includedWords").textContent = number(total); $("pageCount").textContent = number(includedPages.length); $("totalWords").textContent = number(total);
+      $("depthValue").textContent = state.depth;
+      $("depthLabel").textContent = state.manual ? "no bookmarks" : (state.maxDepth > 1 ? `of ${state.maxDepth}` : "flat bookmarks");
+      $("depthSlider").max = state.maxDepth; $("depthSlider").value = state.depth; $("depthSlider").disabled = state.manual || state.maxDepth < 2;
+      $("chapterCount").textContent = `${groups.length} chapter${groups.length === 1 ? "" : "s"}`;
+      $("outlineControls").classList.toggle("hidden", state.manual);
+      $("manualControls").classList.toggle("hidden", !state.manual);
+      const showTarget = state.manual || (state.maxDepth === 1 && state.baseCount >= 2);
+      $("flatControls").classList.toggle("hidden", !showTarget);
+      $("flatHelp").textContent = state.manual ? "Auto-splits the pages into this many chapters. Ignored when you list chapter start pages above." : "This PDF has a flat bookmark list. Adjacent bookmarks are combined into no more than this many chapters.";
+      $("targetSlider").max = Math.max(1, state.manual ? state.pages.length : state.baseCount);
+      $("targetSlider").value = Math.min(state.targetCount, Number($("targetSlider").max));
+      $("targetValue").textContent = $("targetSlider").value;
+      $("chapters").innerHTML = groups.length ? groups.map((group, index) => {
+        const status = group.includedPages ? (group.includedPages === group.pages.length ? "" : "partial") : "excluded";
+        const count = group.includedPages === group.pages.length ? number(group.count) : `<span class="included-count">${number(group.count)}</span> <span class="chapter-detail">/ ${number(group.total)}</span>`;
+        return `<div class="chapter-row ${status}"><span class="chapter-bar" style="background:hsl(${245 + (index * 23) % 75} 75% 82%)"></span><div><div class="chapter-name" title="${escapeHtml(group.label)}">${escapeHtml(group.label)}</div><div class="chapter-detail">pages ${group.pages[0].n}–${group.pages[group.pages.length - 1].n} · ${group.includedPages} of ${group.pages.length} included${group.combined ? " · combined" : ""}</div></div><div class="chapter-count">${count}</div></div>`;
+      }).join("") : '<div class="empty">No pages are included.</div>';
+      $("files").innerHTML = state.pages.map((page, index) => {
+        const preview = (page.override ?? page.text).replace(/\s+/g, " ").slice(0, 60);
+        return `<div class="file-row ${state.selected === page ? "active" : ""}" data-index="${index}" role="button" tabindex="0"><input type="checkbox" ${page.included ? "checked" : ""} aria-label="Include page ${page.n}"><span class="file-label" title="${escapeHtml(preview)}">Page ${page.n}</span><span class="file-count">${number(pageWords(page))}</span></div>`;
+      }).join("");
+      document.querySelectorAll(".file-row").forEach(row => row.addEventListener("click", event => {
+        const page = state.pages[Number(row.dataset.index)];
+        if (event.target.type === "checkbox") return;
+        state.selected = page; updateEditor(); render();
+      }));
+      document.querySelectorAll(".file-row input").forEach(input => input.addEventListener("change", event => { event.stopPropagation(); state.pages[Number(event.target.closest(".file-row").dataset.index)].included = event.target.checked; render(); }));
+      $("squishButton").disabled = !state.fileBytes || !groups.length;
+      $("coverButton").disabled = !state.fileBytes || !state.cover;
+      renderToc();
+    }
+    function updateEditor() {
+      const page = state.selected, editor = $("textEditor");
+      $("editorName").textContent = page ? `Page ${page.n}` : "Select a page";
+      $("editorCount").textContent = page ? `${number(pageWords(page))} words` : "";
+      editor.disabled = !page; editor.value = page ? (page.override ?? page.text) : "";
+    }
+    function renderToc() {
+      if (state.manual) {
+        const groups = structuralGroups();
+        $("tocPreview").innerHTML = groups.length ? `<ul>${groups.map(group => `<li class="keep">${escapeHtml(group.label)} <span class="chapter-detail">· pages ${group.pages[0].n}–${group.pages[group.pages.length - 1].n}</span></li>`).join("")}</ul>` : '<div class="empty">No pages.</div>';
+        return;
+      }
+      const tree = nodes => `<ul>${nodes.map(node => `<li class="${node.depth <= state.depth ? "keep" : "cut"}">${escapeHtml(node.label)} <span class="chapter-detail">· p${node.page}</span>${node.children.length ? tree(node.children) : ""}</li>`).join("")}</ul>`;
+      $("tocPreview").innerHTML = state.outline.length ? tree(state.outline) : '<div class="empty">This PDF has no bookmarks.</div>';
+    }
+
+    // ---- exports (pdf-lib) ----
+    function pdfTitle(label) {
+      const { PDFHexString, PDFString } = PDFLib;
+      try { return PDFHexString.fromText(label); } catch (error) { return PDFString.of(label); }
+    }
+    async function exportSquished() {
+      try {
+        if (!state.fileBytes) throw new Error("Open a PDF first.");
+        const groups = structuralGroups();
+        if (!groups.length) throw new Error("There are no chapters to write.");
+        const { PDFDocument, PDFName, PDFDict, PDFNumber } = PDFLib;
+        const doc = await PDFDocument.load(state.fileBytes, { ignoreEncryption:true });
+        const context = doc.context, pageCount = doc.getPageCount();
+        const root = PDFDict.withContext(context); root.set(PDFName.of("Type"), PDFName.of("Outlines"));
+        const rootRef = context.register(root);
+        const items = groups.map(group => {
+          const dict = PDFDict.withContext(context);
+          dict.set(PDFName.of("Parent"), rootRef);
+          dict.set(PDFName.of("Title"), pdfTitle(group.label));
+          const start = Math.min(Math.max(1, group.pages[0].n), pageCount);
+          dict.set(PDFName.of("Dest"), context.obj([doc.getPage(start - 1).ref, PDFName.of("Fit")]));
+          return { ref:context.register(dict), dict };
+        });
+        items.forEach((item, index) => { if (index > 0) item.dict.set(PDFName.of("Prev"), items[index - 1].ref); if (index < items.length - 1) item.dict.set(PDFName.of("Next"), items[index + 1].ref); });
+        root.set(PDFName.of("First"), items[0].ref); root.set(PDFName.of("Last"), items[items.length - 1].ref); root.set(PDFName.of("Count"), PDFNumber.of(items.length));
+        doc.catalog.set(PDFName.of("Outlines"), rootRef); doc.catalog.set(PDFName.of("PageMode"), PDFName.of("UseOutlines"));
+        download(await doc.save(), `${baseName()} (outline).pdf`);
+      } catch (error) { showNotice(`Could not rewrite the outline: ${error.message || error}`); console.error(error); }
+    }
+    async function exportCover() {
+      try {
+        if (!state.fileBytes) throw new Error("Open a PDF first.");
+        if (!state.cover) throw new Error("Choose a cover image first.");
+        const { PDFDocument } = PDFLib;
+        const doc = await PDFDocument.load(state.fileBytes, { ignoreEncryption:true });
+        const image = state.cover.type === "png" ? await doc.embedPng(state.cover.bytes) : await doc.embedJpg(state.cover.bytes);
+        const fit = $("coverFit").value, dpi = Number($("coverDpi").value) || 300, widthIn = parseFloat($("coverWidth").value), heightIn = parseFloat($("coverHeight").value);
+        const explicit = widthIn > 0 && heightIn > 0;
+        const base = doc.getPageCount() ? doc.getPage(0).getSize() : { width:612, height:792 };
+        let pageWidth, pageHeight;
+        if (fit === "native") { pageWidth = (image.width / dpi) * 72; pageHeight = (image.height / dpi) * 72; }
+        else if (explicit) { pageWidth = widthIn * 72; pageHeight = heightIn * 72; }
+        else { pageWidth = base.width; pageHeight = base.height; }
+        const imageRatio = image.width / image.height, pageRatio = pageWidth / pageHeight;
+        let drawWidth, drawHeight;
+        if (fit === "native") { drawWidth = pageWidth; drawHeight = pageHeight; }
+        else if (fit === "cover") { if (imageRatio > pageRatio) { drawHeight = pageHeight; drawWidth = pageHeight * imageRatio; } else { drawWidth = pageWidth; drawHeight = pageWidth / imageRatio; } }
+        else { if (imageRatio > pageRatio) { drawWidth = pageWidth; drawHeight = pageWidth / imageRatio; } else { drawHeight = pageHeight; drawWidth = pageHeight * imageRatio; } }
+        const cover = doc.insertPage(0, [pageWidth, pageHeight]);
+        cover.drawImage(image, { x:(pageWidth - drawWidth) / 2, y:(pageHeight - drawHeight) / 2, width:drawWidth, height:drawHeight });
+        download(await doc.save(), `${baseName()} (cover).pdf`);
+      } catch (error) { showNotice(`Could not add the cover: ${error.message || error}`); console.error(error); }
+    }
+
+    // ---- events ----
+    $("fileInput").addEventListener("change", event => event.target.files[0] && openPdf(event.target.files[0]));
+    ["dragenter","dragover"].forEach(type => $("dropzone").addEventListener(type, event => { event.preventDefault(); $("dropzone").classList.add("dragging"); }));
+    ["dragleave","drop"].forEach(type => $("dropzone").addEventListener(type, event => { event.preventDefault(); $("dropzone").classList.remove("dragging"); }));
+    $("dropzone").addEventListener("drop", event => event.dataTransfer.files[0] && openPdf(event.dataTransfer.files[0]));
+    $("depthSlider").addEventListener("input", event => { state.depth = Number(event.target.value); render(); });
+    $("targetSlider").addEventListener("input", event => { state.targetCount = Number(event.target.value); render(); });
+    $("breakInput").addEventListener("input", event => {
+      state.breaks = event.target.value.split(/\n/).map(line => line.trim()).filter(Boolean).map(line => { const match = line.match(/^(\d+)\s*(.*)$/); return match ? { page:Number(match[1]), label:match[2].trim() } : null; }).filter(Boolean);
+      render();
+    });
+    $("coverInput").addEventListener("change", async event => {
+      const file = event.target.files[0]; if (!file) return;
+      state.cover = { name:file.name, type:(/png$/i.test(file.type) || /\.png$/i.test(file.name)) ? "png" : "jpg", bytes:new Uint8Array(await file.arrayBuffer()) };
+      render();
+    });
+    $("includeAll").addEventListener("click", () => { state.pages.forEach(page => page.included = true); render(); });
+    $("excludeAll").addEventListener("click", () => { state.pages.forEach(page => page.included = false); render(); });
+    $("textEditor").addEventListener("input", event => { if (!state.selected) return; state.selected.override = event.target.value; $("editorCount").textContent = `${number(pageWords(state.selected))} words`; render(); });
+    $("squishButton").addEventListener("click", exportSquished);
+    $("coverButton").addEventListener("click", exportCover);
+    document.querySelectorAll(".tab-button").forEach(button => button.addEventListener("click", () => { state.activeTab = button.dataset.tab; $("overviewPanel").classList.toggle("hidden", state.activeTab !== "overview"); $("filesPanel").classList.toggle("hidden", state.activeTab !== "pages"); document.querySelectorAll(".tab-button").forEach(tab => tab.classList.toggle("active", tab === button)); }));
+  })();
+  </script>
+</body>
+</html>
