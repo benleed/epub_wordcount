@@ -42,9 +42,9 @@ input[type=range] { width:100%; accent-color:var(--brand); }
 .secondary { color:var(--brand-dark); background:#eeedff; } .secondary:hover { background:#e4e2ff; }
 .block { width:100%; }
 .export-note { margin:11px 0 0; color:var(--muted); font-size:.78rem; }
-.content { min-width:0; display:grid; gap:18px; }
+.content { min-width:0; display:grid; gap:18px; align-content:start; }
 #filesPanel { display:grid; grid-template-columns:minmax(300px,.78fr) minmax(0,1.42fr); align-items:start; gap:18px; }
-.workspace-tabs { display:flex; gap:5px; padding:5px; background:#e9ecf5; border-radius:11px; width:max-content; }
+.workspace-tabs { display:flex; align-items:center; gap:5px; padding:5px; background:#e9ecf5; border-radius:11px; width:max-content; }
 .tab-button { padding:.48rem .85rem; color:#64708a; background:transparent; border-radius:8px; font-size:.86rem; }
 .tab-button.active { color:var(--ink); background:#fff; box-shadow:0 1px 4px #27325a1c; }
 .summary { display:flex; justify-content:space-between; align-items:center; gap:15px; padding:18px 20px; background:linear-gradient(105deg,#24205f,#4338ca); color:white; border-radius:15px; box-shadow:var(--shadow); }
@@ -55,7 +55,9 @@ input[type=range] { width:100%; accent-color:var(--brand); }
 .chapter-row:last-child { border-bottom:0; } .chapter-row:hover { background:#fafaff; }
 .chapter-row.excluded { opacity:.5; background:#fafafa; } .chapter-row.partial .chapter-count .included-count { color:#475569; } .excluded .chapter-name { color:#7b8497; text-decoration:line-through; }
 .chapter-bar { width:5px; height:31px; border-radius:999px; background:#d9d6fe; } .chapter-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:680; }
-.chapter-detail { color:var(--muted); font-size:.78rem; } .chapter-count { font-variant-numeric:tabular-nums; font-weight:800; }
+.chapter-detail { color:var(--muted); font-size:.78rem; } .chapter-count { display:flex; align-items:center; justify-content:flex-end; gap:10px; }
+.count-text { font-variant-numeric:tabular-nums; font-weight:800; }
+.row-action { flex:none; }
 .files { max-height:calc(100vh - 240px); min-height:360px; overflow:auto; }
 .file-row { display:grid; grid-template-columns:28px minmax(0,1fr) auto; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid #edf0f5; cursor:pointer; }
 .file-row:hover,.file-row.active { background:#f5f4ff; } .file-row input { accent-color:var(--brand); width:21px; height:21px; cursor:pointer; }

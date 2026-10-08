@@ -35,6 +35,10 @@ book storage: the book is opened and processed entirely in the browser.
 - Groups the **Files & text** / **Pages & text** list by chapter, with a filter
   box and a "only flagged" toggle, so a book with hundreds of small files (or a
   long footnote review list) stays navigable.
+- Exports any single chapter's text as a plain-text file (**TXT** beside the
+  count in the reading breakdown), which is a convenient way to hand one chapter
+  to a summariser or an LLM. It writes exactly the counted text — the file edits
+  and note removals above are included — with the chapter label as a header.
 - Exports a separate `_squished.epub`. The export trims the navigation below
   the chosen level, appends folded sub-chapter document bodies to the parent,
   and removes the folded documents from the EPUB spine. It keeps the original
@@ -46,7 +50,9 @@ book storage: the book is opened and processed entirely in the browser.
    `.epub` file.
 2. Review the **Overview** tab for the running total, the **Reading breakdown**,
    and a contents preview. Excluded chapters are greyed out; a partly included
-   chapter shows *included / total*.
+   chapter shows *included / total*. The **TXT** button on a chapter row saves
+   that chapter's counted text as a `.txt` file, ready to paste into a
+   summariser.
 3. Open the **Files & text** tab to manage individual files. The list is grouped
    by chapter; the filter box narrows it by chapter, file name, or text, and
    **Show only files with detected notes** turns it into a review list.

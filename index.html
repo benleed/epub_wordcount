@@ -151,7 +151,8 @@
       $("depthValue").textContent = state.depth; $("depthLabel").textContent = state.maxDepth > 1 ? `of ${state.maxDepth}` : "flat contents";
       $("depthSlider").value = state.depth; $("chapterCount").textContent = `${groups.length} chapter${groups.length === 1 ? "" : "s"}`;
       $("flatControls").classList.toggle("hidden",state.maxDepth !== 1 || state.baseCount < 2); $("targetSlider").max=state.baseCount; $("targetSlider").value=state.targetCount; $("targetValue").textContent=state.targetCount;
-      $("chapters").innerHTML = groups.length ? groups.map((group,index) => { const status=group.includedFiles ? (group.includedFiles === group.docs.length ? "" : "partial") : "excluded"; const count=group.includedFiles === group.docs.length ? number(group.count) : `<span class="included-count">${number(group.count)}</span> <span class="chapter-detail">/ ${number(group.total)}</span>`; return `<div class="chapter-row ${status}"><span class="chapter-bar" style="background:hsl(${245 + (index*23)%75} 75% 82%)"></span><div><div class="chapter-name" title="${escapeHtml(group.label)}">${escapeHtml(group.label)}</div><div class="chapter-detail">${group.includedFiles} of ${group.docs.length} file${group.docs.length === 1 ? "" : "s"} included${group.combined ? " · combined" : ""}</div></div><div class="chapter-count">${count}</div></div>`; }).join("") : '<div class="empty">No reading files are included.</div>';
+      $("chapters").innerHTML = groups.length ? groups.map((group,index) => { const status=group.includedFiles ? (group.includedFiles === group.docs.length ? "" : "partial") : "excluded"; const count=group.includedFiles === group.docs.length ? number(group.count) : `<span class="included-count">${number(group.count)}</span> <span class="chapter-detail">/ ${number(group.total)}</span>`; return `<div class="chapter-row ${status}"><span class="chapter-bar" style="background:hsl(${245 + (index*23)%75} 75% 82%)"></span><div><div class="chapter-name" title="${escapeHtml(group.label)}">${escapeHtml(group.label)}</div><div class="chapter-detail">${group.includedFiles} of ${group.docs.length} file${group.docs.length === 1 ? "" : "s"} included${group.combined ? " · combined" : ""}</div></div><div class="chapter-count"><span class="count-text">${count}</span><button class="secondary mini-button row-action" data-export="${index}" title="Download this chapter's text as a .txt file (useful for summarising)">TXT</button></div></div>`; }).join("") : '<div class="empty">No reading files are included.</div>';
+      document.querySelectorAll("[data-export]").forEach(button => button.addEventListener("click", event => { event.stopPropagation(); exportChapter(groups[Number(button.dataset.export)]); }));
       renderNotesPanel();
       renderFiles();
       renderToc();
@@ -365,6 +366,25 @@
       while(map.firstChild) map.removeChild(map.firstChild); const ns=map.namespaceURI;
       groups.forEach((group,index) => { const point=doc.createElementNS(ns,"navPoint"), label=doc.createElementNS(ns,"navLabel"), text=doc.createElementNS(ns,"text"), content=doc.createElementNS(ns,"content"); point.setAttribute("id",`chapterwise-${index+1}`); point.setAttribute("playOrder",String(index+1)); text.textContent=group.label; label.appendChild(text); content.setAttribute("src",relative(state.navPath,group.docs[0].path)); point.append(label,content); map.appendChild(point); });
       return new XMLSerializer().serializeToString(doc);
+    }
+    // ---- chapter text export (for summarising elsewhere) ----
+    function safeFileName(value) {
+      return (value || "chapter").replace(/[\\/:*?"<>|\u0000-\u001f]/g, "-").replace(/\s+/g, " ").trim().slice(0, 90).replace(/[.\s-]+$/, "") || "chapter";
+    }
+    function downloadText(name, text) {
+      const blob = new Blob([text], { type:"text/plain;charset=utf-8" }), link = document.createElement("a");
+      link.href = URL.createObjectURL(blob); link.download = name; link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1500);
+    }
+    // The text exactly as counted: the file editors' changes (including removed notes) are included.
+    function chapterText(group) {
+      const body = (group.docs || []).map(doc => (doc.override ?? doc.text) || "").map(value => value.trim()).filter(Boolean).join("\n\n");
+      return `${group.label}\n${"-".repeat(Math.min(80, Math.max(8, group.label.length)))}\n\n${body}\n`;
+    }
+    function exportChapter(group) {
+      if (!group) return;
+      const book = state.fileName.replace(/\.epub$/i, "");
+      downloadText(`${safeFileName(book)} - ${safeFileName(group.label)}.txt`, chapterText(group));
     }
     async function exportBook() {
       try {

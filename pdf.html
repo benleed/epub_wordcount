@@ -317,8 +317,9 @@
       $("chapters").innerHTML = groups.length ? groups.map((group, index) => {
         const status = group.includedPages ? (group.includedPages === group.pages.length ? "" : "partial") : "excluded";
         const count = group.includedPages === group.pages.length ? number(group.count) : `<span class="included-count">${number(group.count)}</span> <span class="chapter-detail">/ ${number(group.total)}</span>`;
-        return `<div class="chapter-row ${status}"><span class="chapter-bar" style="background:hsl(${245 + (index * 23) % 75} 75% 82%)"></span><div><div class="chapter-name" title="${escapeHtml(group.label)}">${escapeHtml(group.label)}</div><div class="chapter-detail">pages ${group.pages[0].n}–${group.pages[group.pages.length - 1].n} · ${group.includedPages} of ${group.pages.length} included${group.combined ? " · combined" : ""}</div></div><div class="chapter-count">${count}</div></div>`;
+        return `<div class="chapter-row ${status}"><span class="chapter-bar" style="background:hsl(${245 + (index * 23) % 75} 75% 82%)"></span><div><div class="chapter-name" title="${escapeHtml(group.label)}">${escapeHtml(group.label)}</div><div class="chapter-detail">pages ${group.pages[0].n}–${group.pages[group.pages.length - 1].n} · ${group.includedPages} of ${group.pages.length} included${group.combined ? " · combined" : ""}</div></div><div class="chapter-count"><span class="count-text">${count}</span><button class="secondary mini-button row-action" data-export="${index}" title="Download this chapter's text as a .txt file (useful for summarising)">TXT</button></div></div>`;
       }).join("") : '<div class="empty">No pages are included.</div>';
+      document.querySelectorAll("[data-export]").forEach(button => button.addEventListener("click", event => { event.stopPropagation(); exportChapter(groups[Number(button.dataset.export)]); }));
       renderFiles();
       $("squishButton").disabled = !state.fileBytes || !groups.length;
       $("coverButton").disabled = !state.fileBytes || !state.cover;
@@ -478,6 +479,26 @@
     }
 
     // ---- exports (pdf-lib) ----
+    // ---- chapter text export (for summarising elsewhere) ----
+    function safeFileName(value) {
+      return (value || "chapter").replace(/[\\/:*?"<>|\u0000-\u001f]/g, "-").replace(/\s+/g, " ").trim().slice(0, 90).replace(/[.\s-]+$/, "") || "chapter";
+    }
+    function downloadText(name, text) {
+      const blob = new Blob([text], { type:"text/plain;charset=utf-8" }), link = document.createElement("a");
+      link.href = URL.createObjectURL(blob); link.download = name; link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1500);
+    }
+    // The text exactly as counted: per-page edits (including removed notes) are included.
+    function chapterText(group) {
+      const pages = group.pages || [];
+      const range = pages.length ? `Pages ${pages[0].n}–${pages[pages.length - 1].n} · ${pages.length} page${pages.length === 1 ? "" : "s"}` : "";
+      const body = pages.map(page => (page.override ?? page.text) || "").map(value => value.trim()).filter(Boolean).join("\n\n");
+      return `${group.label}\n${range}\n${"-".repeat(Math.min(80, Math.max(8, group.label.length)))}\n\n${body}\n`;
+    }
+    function exportChapter(group) {
+      if (!group) return;
+      downloadText(`${safeFileName(baseName())} - ${safeFileName(group.label)}.txt`, chapterText(group));
+    }
     function pdfTitle(label) {
       const { PDFHexString, PDFString } = PDFLib;
       try { return PDFHexString.fromText(label); } catch (error) { return PDFString.of(label); }
