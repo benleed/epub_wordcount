@@ -3,76 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Private, browser-based EPUB word counts and chapter remapping.">
+  <meta name="description" content="Private, browser-based EPUB word counts, chapter remapping, and footnote review.">
   <title>Chapterwise — EPUB reading planner</title>
+  <script src="footnotes.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+  <link rel="stylesheet" href="styles.css">
   <style>
-    :root { --ink:#172033; --muted:#65718a; --line:#dbe1eb; --canvas:#f6f7fb; --card:#fff; --brand:#4f46e5; --brand-dark:#3730a3; --accent:#ecfdf5; --danger:#b42318; --shadow:0 18px 44px rgba(26,36,64,.10); }
-    * { box-sizing:border-box; }
-    body { margin:0; color:var(--ink); background:var(--canvas); font:15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    button,input,textarea { font:inherit; }
-    button { border:0; border-radius:9px; cursor:pointer; font-weight:700; padding:.68rem 1rem; }
-    button:disabled { cursor:not-allowed; opacity:.48; }
-    .topbar { display:flex; justify-content:space-between; align-items:center; max-width:1240px; margin:auto; padding:19px 28px; }
-    .brand { display:flex; align-items:center; gap:10px; font-size:1.1rem; font-weight:850; letter-spacing:-.02em; }
-    .brand-mark { display:grid; place-items:center; width:31px; height:31px; color:#fff; background:linear-gradient(135deg,#6d5dfc,#3b82f6); border-radius:9px; box-shadow:0 5px 13px #4f46e552; }
-    .privacy { color:var(--muted); font-size:.85rem; }
-    .privacy::before { content:"●"; color:#10b981; margin-right:6px; }
-    main { max-width:1240px; margin:0 auto; padding:10px 28px 48px; }
-    .hero { padding:42px 0 27px; max-width:790px; }
-    h1 { margin:0 0 13px; font-size:clamp(2.15rem,5vw,4.25rem); line-height:1.03; letter-spacing:-.055em; }
-    .hero p { font-size:1.13rem; color:var(--muted); margin:0; max-width:680px; }
-    .dropzone { display:flex; align-items:center; gap:20px; padding:27px; border:2px dashed #aeb8cc; background:linear-gradient(110deg,#fff,#f7f5ff); border-radius:18px; transition:.2s; box-shadow:var(--shadow); }
-    .dropzone.dragging { border-color:var(--brand); background:#f3f1ff; transform:translateY(-2px); }
-    .drop-icon { display:grid; place-items:center; flex:none; width:48px; height:48px; border-radius:13px; background:#e9e7ff; color:var(--brand); font-size:1.55rem; }
-    .dropzone strong { display:block; font-size:1.02rem; } .dropzone span { color:var(--muted); font-size:.9rem; }
-    .file-button { margin-left:auto; color:white; background:var(--brand); white-space:nowrap; } .file-button:hover { background:var(--brand-dark); }
-    #fileInput { display:none; }
-    .notice { margin:20px 0; padding:12px 15px; border-radius:10px; color:#8a2d1e; background:#fff4ed; border:1px solid #fed7aa; }
-    .hidden { display:none !important; }
-    .workspace { display:grid; grid-template-columns:minmax(250px,.85fr) minmax(420px,1.8fr); gap:21px; margin-top:28px; }
-    .card { background:var(--card); border:1px solid var(--line); border-radius:15px; box-shadow:0 3px 10px rgba(26,36,64,.025); }
-    .card-title { display:flex; align-items:center; justify-content:space-between; padding:17px 19px; border-bottom:1px solid var(--line); }
-    .card-title h2 { margin:0; font-size:.92rem; letter-spacing:.01em; } .eyebrow { color:var(--muted); font-size:.77rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; }
-    .sidebar { display:grid; align-content:start; gap:18px; }
-    .book-name { padding:17px 19px 6px; overflow-wrap:anywhere; font-weight:750; }
-    .stat-grid { display:grid; grid-template-columns:1fr 1fr; padding:13px 19px 19px; gap:12px; }
-    .stat { padding:12px; background:#f7f8fc; border-radius:10px; } .stat strong { display:block; font-size:1.42rem; letter-spacing:-.045em; } .stat span { color:var(--muted); font-size:.76rem; }
-    .control-body { padding:17px 19px 19px; }
-    input[type=range] { width:100%; accent-color:var(--brand); }
-    .depth-readout { display:flex; justify-content:space-between; margin:0 0 7px; font-size:.9rem; } .depth-readout b { color:var(--brand); }
-    .help { margin:10px 0 0; color:var(--muted); font-size:.83rem; }
-    .primary { color:white; background:var(--brand); } .primary:hover { background:var(--brand-dark); }
-    .secondary { color:var(--brand-dark); background:#eeedff; } .secondary:hover { background:#e4e2ff; }
-    .export-note { margin:11px 0 0; color:var(--muted); font-size:.78rem; }
-    .content { min-width:0; display:grid; gap:18px; }
-    #filesPanel { display:grid; grid-template-columns:minmax(335px,.95fr) minmax(0,1.05fr); align-items:start; gap:18px; }
-    .workspace-tabs { display:flex; gap:5px; padding:5px; background:#e9ecf5; border-radius:11px; width:max-content; }
-    .tab-button { padding:.48rem .85rem; color:#64708a; background:transparent; border-radius:8px; font-size:.86rem; }
-    .tab-button.active { color:var(--ink); background:#fff; box-shadow:0 1px 4px #27325a1c; }
-    .summary { display:flex; justify-content:space-between; align-items:center; gap:15px; padding:18px 20px; background:linear-gradient(105deg,#24205f,#4338ca); color:white; border-radius:15px; box-shadow:var(--shadow); }
-    .summary h2 { margin:0; font-size:1.05rem; } .summary p { margin:3px 0 0; color:#d9d7ff; font-size:.85rem; }
-    .total { font-size:1.8rem; font-weight:850; letter-spacing:-.05em; white-space:nowrap; }
-    .chapter-table { overflow:hidden; }
-    .chapter-row { display:grid; grid-template-columns:31px minmax(0,1fr) auto; gap:12px; align-items:center; padding:13px 19px; border-bottom:1px solid #edf0f5; }
-    .chapter-row:last-child { border-bottom:0; } .chapter-row:hover { background:#fafaff; }
-    .chapter-row.excluded { opacity:.5; background:#fafafa; } .chapter-row.partial .chapter-count .included-count { color:#475569; } .excluded .chapter-name { color:#7b8497; text-decoration:line-through; }
-    .chapter-bar { width:5px; height:31px; border-radius:999px; background:#d9d6fe; } .chapter-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:680; }
-    .chapter-detail { color:var(--muted); font-size:.78rem; } .chapter-count { font-variant-numeric:tabular-nums; font-weight:800; }
-    .files { max-height:calc(100vh - 265px); min-height:340px; overflow:auto; }
-    .file-row { display:grid; grid-template-columns:28px minmax(0,1fr) auto; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid #edf0f5; cursor:pointer; }
-    .file-row:hover,.file-row.active { background:#f5f4ff; } .file-row input { accent-color:var(--brand); width:21px; height:21px; cursor:pointer; }
-    .file-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.87rem; } .file-count { color:var(--muted); font-size:.8rem; font-variant-numeric:tabular-nums; }
-    .editor { padding:17px 19px 19px; } .editor-head { display:flex; gap:12px; justify-content:space-between; align-items:baseline; margin-bottom:10px; } .editor-head strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .editor-head span { color:var(--muted); font-size:.81rem; white-space:nowrap; }
-    textarea { display:block; width:100%; min-height:calc(100vh - 255px); resize:vertical; padding:15px; color:#2d3549; background:#fbfcff; border:1px solid #cfd6e5; border-radius:9px; line-height:1.65; } textarea:focus { outline:3px solid #4f46e526; border-color:#8078ef; }
-    .empty { padding:35px 20px; color:var(--muted); text-align:center; } .loading { padding:22px; color:var(--muted); }
-    .toc { padding:15px 18px 18px; max-height:280px; overflow:auto; } .toc ul { list-style:none; margin:0; padding-left:16px; border-left:1px solid #e3e6ef; } .toc > ul { padding-left:0; border:0; } .toc li { padding:3px 0; color:#4d5870; font-size:.88rem; } .toc li.keep { color:var(--ink); font-weight:700; } .toc li.cut { color:#98a2b3; text-decoration:line-through; }
-    @media (max-width:800px) { .topbar,main { padding-left:16px; padding-right:16px; } .topbar .privacy { display:none; } .hero { padding-top:27px; } .dropzone { flex-wrap:wrap; } .file-button { margin-left:0; } .workspace { grid-template-columns:1fr; } .sidebar { grid-template-columns:1fr 1fr; } .sidebar .card:first-child,.sidebar .card:last-child { grid-column:1 / -1; } #filesPanel { grid-template-columns:1fr; } .files { max-height:340px; } textarea { min-height:320px; } }
-    @media (max-width:500px) { .sidebar { grid-template-columns:1fr; } .sidebar .card:first-child,.sidebar .card:last-child { grid-column:auto; } .summary { align-items:flex-start; flex-direction:column; } .chapter-row { padding:11px 13px; } }
+    /* EPUB-tool-only rules; everything shared lives in styles.css. */
   </style>
 </head>
 <body>
-  <header class="topbar"><div class="brand"><span class="brand-mark">⌁</span>Chapterwise</div><div class="privacy">Your book stays in this browser · <a href="pdf.html" style="color:#3730a3;font-weight:700;text-decoration:none">PDF tool →</a></div></header>
+  <header class="topbar"><div class="brand"><span class="brand-mark">⌁</span>Chapterwise</div><nav class="topnav"><span class="privacy">Your book stays in this browser</span><a href="pdf.html">PDF tool →</a></nav></header>
   <main>
     <section class="hero"><h1>Plan the next chapter,<br>not just the next page.</h1><p>Open an EPUB to get a useful reading word count, inspect its chapter structure, and make a calmer table of contents for your e-reader.</p></section>
     <label class="dropzone" id="dropzone" for="fileInput">
@@ -85,6 +26,7 @@
       <aside class="sidebar">
         <section class="card"><div class="book-name" id="bookName"></div><div class="stat-grid"><div class="stat"><strong id="includedWords">—</strong><span>words included</span></div><div class="stat"><strong id="fileCount">—</strong><span>reading files</span></div></div></section>
         <section class="card"><div class="card-title"><h2>Primary chapter level</h2><span class="eyebrow" id="depthLabel"></span></div><div class="control-body"><div class="depth-readout"><span>Keep through level</span><b id="depthValue">1</b></div><input id="depthSlider" type="range" min="1" max="1" value="1"><p class="help">Choose how far down a nested contents hierarchy should go. Deeper sections fold into the selected parent.</p><div id="flatControls" class="hidden"><hr><div class="depth-readout"><span>Target chapters</span><b id="targetValue">—</b></div><input id="targetSlider" type="range" min="1" max="1" value="1"><p class="help">This book has a flat contents list. Adjacent sections are combined into no more than this many e-reader chapters.</p></div></div></section>
+        <section class="card"><div class="card-title"><h2>Footnotes</h2><span class="eyebrow" id="noteSummary"></span></div><div class="control-body"><label class="check-field"><input id="detectNotes" type="checkbox" checked> Detect notes automatically</label><div class="toolbar" style="margin-top:10px"><button id="removeHighNotes" class="secondary mini-button" disabled>Remove high-confidence</button><button id="removeAllNotes" class="secondary mini-button" disabled>Remove all flagged</button><button id="restoreText" class="secondary mini-button" disabled>Restore original text</button></div><p class="toolbar-note" id="noteSummaryText">Open an EPUB to look for footnotes.</p><p class="help">Notes are only flagged by default: nothing is subtracted from the word count until you remove it, and the original EPUB is never changed. Per-file details are in the <strong>Files &amp; text</strong> tab.</p></div></section>
         <section class="card"><div class="card-title"><h2>Export for e-reader</h2></div><div class="control-body"><button id="exportButton" class="primary" disabled>Download squished EPUB</button><p class="export-note">Creates a new file. It shortens the EPUB navigation and removes folded files from the reading spine after appending their contents to the parent.</p></div></section>
       </aside>
       <div class="content">
@@ -95,8 +37,8 @@
           <section class="card"><div class="card-title"><h2>Contents preview</h2><span class="eyebrow">struck items fold into parent</span></div><div id="tocPreview" class="toc"></div></section>
         </div>
         <div id="filesPanel" class="hidden">
-          <section class="card"><div class="card-title"><h2>Included reading files</h2><span><button id="excludeAll" class="secondary">Exclude all</button> <button id="includeAll" class="secondary">Include all</button></span></div><div id="files" class="files"></div></section>
-          <section class="card"><div class="editor-head editor"><strong id="editorName">Select a reading file</strong><span id="editorCount"></span></div><div class="editor"><textarea id="textEditor" disabled placeholder="Select a file above to inspect the text counted for it. You can remove footnotes, bibliography, or any other text here; this only changes the count, never your original EPUB."></textarea><p class="help">This is the text used for word counts. Changes here do not alter the exported EPUB; exclude a whole file with its checkbox when appropriate.</p></div></section>
+          <section class="card"><div class="card-title"><h2>Included reading files</h2><span><button id="excludeAll" class="secondary">Exclude all</button> <button id="includeAll" class="secondary">Include all</button></span></div><div class="files-head"><input id="fileFilter" class="file-filter" type="search" autocomplete="off" placeholder="Filter files by chapter, file name, or text…"><label class="check-field" style="margin-top:8px"><input id="onlyFlagged" type="checkbox"> Show only files with detected notes</label></div><div id="files" class="files"></div></section>
+          <section class="card"><div class="editor-head editor"><strong id="editorName">Select a reading file</strong><span id="editorCount"></span></div><div class="editor"><div id="editorTools" class="editor-tools"></div><textarea id="textEditor" disabled placeholder="Select a file above to inspect the text counted for it. You can remove footnotes, bibliography, or any other text here; this only changes the count, never your original EPUB."></textarea><p class="help">This is the text used for word counts. Changes here do not alter the exported EPUB; exclude a whole file with its checkbox when appropriate.</p></div></section>
         </div>
       </div>
     </section>
@@ -104,7 +46,8 @@
   <script>
   (() => {
     const $ = id => document.getElementById(id);
-    const state = { zip:null, fileName:"book.epub", opfPath:"", opfText:"", base:"", manifest:new Map(), spine:[], nav:[], anchors:[], navPath:"", navKind:"", depth:1, maxDepth:1, targetCount:1, baseCount:1, selected:null, activeTab:"overview" };
+    const Notes = window.ChapterwiseNotes || null;
+    const state = { zip:null, fileName:"book.epub", opfPath:"", opfText:"", base:"", manifest:new Map(), spine:[], nav:[], anchors:[], navPath:"", navKind:"", depth:1, maxDepth:1, targetCount:1, baseCount:1, selected:null, activeTab:"overview", filter:"", onlyFlagged:false, detectNotes:true, noteSummary:null };
     const cleanPath = path => {
       const parts = [];
       path.replace(/\\/g,"/").split("/").forEach(part => { if (!part || part === ".") return; if (part === "..") parts.pop(); else parts.push(part); });
@@ -186,9 +129,15 @@
       if (bucket.length) result.push(makeCombinedGroup(bucket));
       return result;
     }
+    // A combined flat-contents chunk is titled "[First chapter] – [Last chapter]" so the
+    // e-reader navigation shows the range it covers instead of only where it starts.
+    function combinedLabel(first, last) {
+      const a=(first || "").trim(), b=(last || "").trim();
+      return a && b && a !== b ? `${a} – ${b}` : (a || b);
+    }
     function makeCombinedGroup(groups) {
-      const first=groups[0];
-      return { label:first.label, docs:groups.flatMap(group=>group.docs), node:first.node, combined:groups.length > 1, sourceGroups:groups };
+      const first=groups[0], last=groups.at(-1);
+      return { label:combinedLabel(first.label,last.label), docs:groups.flatMap(group=>group.docs), node:first.node, combined:groups.length > 1, sourceGroups:groups };
     }
     function displayGroups() {
       return structuralGroups().map(group => {
@@ -203,21 +152,154 @@
       $("depthSlider").value = state.depth; $("chapterCount").textContent = `${groups.length} chapter${groups.length === 1 ? "" : "s"}`;
       $("flatControls").classList.toggle("hidden",state.maxDepth !== 1 || state.baseCount < 2); $("targetSlider").max=state.baseCount; $("targetSlider").value=state.targetCount; $("targetValue").textContent=state.targetCount;
       $("chapters").innerHTML = groups.length ? groups.map((group,index) => { const status=group.includedFiles ? (group.includedFiles === group.docs.length ? "" : "partial") : "excluded"; const count=group.includedFiles === group.docs.length ? number(group.count) : `<span class="included-count">${number(group.count)}</span> <span class="chapter-detail">/ ${number(group.total)}</span>`; return `<div class="chapter-row ${status}"><span class="chapter-bar" style="background:hsl(${245 + (index*23)%75} 75% 82%)"></span><div><div class="chapter-name" title="${escapeHtml(group.label)}">${escapeHtml(group.label)}</div><div class="chapter-detail">${group.includedFiles} of ${group.docs.length} file${group.docs.length === 1 ? "" : "s"} included${group.combined ? " · combined" : ""}</div></div><div class="chapter-count">${count}</div></div>`; }).join("") : '<div class="empty">No reading files are included.</div>';
-      $("files").innerHTML = state.spine.map((doc,index) => `<div class="file-row ${state.selected === doc ? "active" : ""}" data-index="${index}" role="button" tabindex="0"><input type="checkbox" ${doc.included ? "checked" : ""} aria-label="Include ${escapeHtml(doc.label)}"><span class="file-label" title="${escapeHtml(doc.path)}">${escapeHtml(doc.label)}</span><span class="file-count">${number(docWords(doc))}</span></div>`).join("");
+      renderNotesPanel();
+      renderFiles();
+      renderToc();
+    }
+    // ---- file list, grouped by chapter ----
+    function docMatches(doc, query) {
+      if (!query) return true;
+      return doc.label.toLowerCase().includes(query) || doc.path.toLowerCase().includes(query) || (doc.override ?? doc.text).toLowerCase().includes(query);
+    }
+    function noteBadges(item) {
+      const notes = item.notes || [];
+      if (!notes.length && !item.notesFile) return "";
+      const removed = item.noteWordsRemoved || 0, applied = item.notesApplied || 0;
+      const badges = [];
+      if (notes.length) badges.push(`<span class="badge ${applied ? "note" : "review"}">${applied ? `${applied} of ` : ""}${notes.length} note${notes.length === 1 ? "" : "s"}${removed ? ` · −${number(removed)} w` : " flagged"}</span>`);
+      if (item.notesFile) badges.push(`<span class="badge notes-file">${/front or back matter/i.test(item.notesFile) ? "front matter" : "notes section"}</span>`);
+      return `<span class="badges">${badges.join("")}</span>`;
+    }
+    function renderFiles() {
+      const groups=displayGroups(), query=state.filter.trim().toLowerCase(), rows=[];
+      groups.forEach((group,groupIndex) => {
+        const docs=group.docs.filter(doc => docMatches(doc,query) && (!state.onlyFlagged || (doc.notes || []).length || doc.notesFile));
+        if (!docs.length) return;
+        const allIncluded=group.includedFiles === group.docs.length;
+        rows.push(`<div class="file-group" data-group="${groupIndex}"><span class="file-group-label" title="${escapeHtml(group.label)}">${escapeHtml(group.label)}</span><span class="file-group-meta">${group.includedFiles} of ${group.docs.length} file${group.docs.length === 1 ? "" : "s"} · ${number(group.count)} w</span><button class="mini-button ${allIncluded ? "secondary" : "primary"}" data-group-toggle="${groupIndex}">${allIncluded ? "Exclude" : "Include"}</button></div>`);
+        docs.forEach(doc => rows.push(`<div class="file-row sub ${state.selected === doc ? "active" : ""}" data-doc="${doc.index}" role="button" tabindex="0"><input type="checkbox" ${doc.included ? "checked" : ""} aria-label="Include ${escapeHtml(doc.label)}"><span class="file-main"><span class="file-label" title="${escapeHtml(doc.path)}">${escapeHtml(doc.label)}${doc.override != null ? " · edited" : ""}</span>${noteBadges(doc)}</span><span class="file-count">${number(docWords(doc))}</span></div>`));
+      });
+      $("files").innerHTML = rows.length ? rows.join("") : `<div class="empty">${query || state.onlyFlagged ? "No reading files match this filter." : "No reading files."}</div>`;
+      document.querySelectorAll("[data-group-toggle]").forEach(button => button.addEventListener("click",event => { event.stopPropagation(); const group=groups[Number(button.dataset.groupToggle)]; if (!group) return; const all=group.docs.every(doc=>doc.included); group.docs.forEach(doc=>doc.included=!all); render(); }));
       document.querySelectorAll(".file-row").forEach(row => row.addEventListener("click", event => {
-        const doc = state.spine[Number(row.dataset.index)];
+        const doc = state.spine[Number(row.dataset.doc)];
         if (event.target.type === "checkbox") return;
         state.selected = doc; updateEditor(); render();
       }));
-      document.querySelectorAll(".file-row input").forEach(input => input.addEventListener("change",event => { event.stopPropagation(); state.spine[Number(event.target.closest(".file-row").dataset.index)].included=event.target.checked; render(); }));
-      renderToc();
+      document.querySelectorAll(".file-row input").forEach(input => input.addEventListener("change",event => { event.stopPropagation(); state.spine[Number(event.target.closest(".file-row").dataset.doc)].included=event.target.checked; render(); }));
     }
     function updateEditor() {
       const doc=state.selected, editor=$("textEditor");
-      $("editorName").textContent = doc ? doc.label : "Select a reading file"; $("editorCount").textContent = doc ? `${number(docWords(doc))} words` : "";
+      $("editorName").textContent = doc ? doc.label : "Select a reading file";
+      $("editorCount").textContent = doc ? `${number(docWords(doc))} words${doc.override != null ? ` (was ${number(words(doc.text))})` : ""}` : "";
       editor.disabled = !doc; editor.value = doc ? (doc.override ?? doc.text) : "";
+      renderEditorTools();
+    }
+
+    // ---- footnotes: detect, review, remove ----
+    function detectNotes() {
+      if (!Notes) return;
+      state.spine.forEach(doc => {
+        doc.notes = state.detectNotes && doc.report ? doc.report.candidates : [];
+        doc.notes.forEach(note => { note.removed = false; });
+        refreshNoteWords(doc);
+      });
+    }
+    function refreshNoteWords(doc) {
+      doc.noteWordsRemoved = Math.max(0, words(doc.text) - words(doc.override ?? doc.text));
+      doc.notesApplied = (doc.notes || []).filter(note => note.removed).length;
+    }
+    function rangesFor(doc, predicate) {
+      const base = doc.override == null ? doc.text : doc.override, ranges = [];
+      (doc.notes || []).forEach(note => {
+        if (note.removed || !predicate(note)) return;
+        if (doc.override == null) { ranges.push({ start:note.start, end:note.end }); return; }
+        const at = base.indexOf(note.text);
+        if (at >= 0) ranges.push({ start:at, end:at + note.text.length });
+      });
+      return ranges;
+    }
+    function removeNotesFromDoc(doc, predicate) {
+      if (!Notes || !doc) return 0;
+      const base = doc.override == null ? doc.text : doc.override, ranges = rangesFor(doc, predicate);
+      if (ranges.length) {
+        doc.override = Notes.removeRanges(base, ranges);
+        (doc.notes || []).forEach(note => { if (!note.removed && predicate(note)) note.removed = true; });
+      }
+      refreshNoteWords(doc);
+      return ranges.length;
+    }
+    function restoreDocText(doc) {
+      delete doc.override;
+      (doc.notes || []).forEach(note => { note.removed = false; });
+      refreshNoteWords(doc);
     }
     function escapeHtml(value) { const el=document.createElement("span"); el.textContent=value; return el.innerHTML; }
+    function removeNotesEverywhere(onlyHigh) {
+      if (!Notes) return;
+      let docs = 0, removedWords = 0;
+      state.spine.forEach(doc => {
+        const before = words(doc.override ?? doc.text);
+        if (removeNotesFromDoc(doc, note => !onlyHigh || note.confidence === "high")) {
+          docs++; removedWords += before - words(doc.override);
+        }
+      });
+      render(); updateEditor();
+      showNotice(docs
+        ? `Removed ${number(removedWords)} words of detected notes from ${docs} reading file${docs === 1 ? "" : "s"}. The totals above have been updated; your EPUB file is untouched.`
+        : "There were no flagged notes left to remove.");
+    }
+    function restoreAllText() {
+      let docs = 0;
+      state.spine.forEach(doc => { if (doc.override != null) { docs++; restoreDocText(doc); } });
+      render(); updateEditor();
+      showNotice(docs ? `Restored the original text for ${docs} reading file${docs === 1 ? "" : "s"}.` : "No file text had been changed.");
+    }
+    function noteStats() {
+      const stats = { files:0, flagged:0, flaggedWords:0, remaining:0, remainingHigh:0, removedWords:0, noteFiles:0 };
+      state.spine.forEach(doc => {
+        const notes = doc.notes || [];
+        if (doc.notesFile) stats.noteFiles++;
+        if (notes.length) { stats.files++; stats.flagged += notes.length; stats.flaggedWords += notes.reduce((sum, note) => sum + words(note.text), 0); }
+        stats.remaining += notes.filter(note => !note.removed).length;
+        stats.remainingHigh += notes.filter(note => !note.removed && note.confidence === "high").length;
+        stats.removedWords += doc.noteWordsRemoved || 0;
+      });
+      return stats;
+    }
+    function renderNotesPanel() {
+      const stats = noteStats();
+      const ignoredWords = state.spine.reduce((sum, doc) => sum + (doc.ignored || []).reduce((inner, item) => inner + item.words, 0), 0);
+      $("detectNotes").checked = state.detectNotes;
+      $("noteSummary").textContent = !state.spine.length ? "" : stats.files + stats.noteFiles ? `${stats.files + stats.noteFiles} file${stats.files + stats.noteFiles === 1 ? "" : "s"}` : "none found";
+      const parts = [];
+      if (!state.spine.length) parts.push("Open an EPUB to look for footnotes.");
+      else if (stats.files || stats.noteFiles) {
+        parts.push(`Found notes in <strong>${stats.files}</strong> file${stats.files === 1 ? "" : "s"} (${number(stats.flaggedWords)} words, ${stats.remainingHigh} high confidence)`);
+        if (stats.noteFiles) parts.push(`and <strong>${stats.noteFiles}</strong> whole file${stats.noteFiles === 1 ? "" : "s"} that look like a notes section.`);
+      } else parts.push("No footnotes were detected in this EPUB.");
+      if (stats.removedWords) parts.push(`<strong>${number(stats.removedWords)}</strong> words of notes are removed from the count.`);
+      if (ignoredWords) parts.push(`${number(ignoredWords)} words of semantic footnote markup were already excluded.`);
+      $("noteSummaryText").innerHTML = parts.join(" ");
+      $("removeHighNotes").disabled = !stats.remainingHigh;
+      $("removeAllNotes").disabled = !stats.remaining;
+      $("restoreText").disabled = !state.spine.some(doc => doc.override != null);
+    }
+    function renderEditorTools() {
+      const doc = state.selected, box = $("editorTools");
+      if (!doc) { box.innerHTML = ""; return; }
+      const fileNote = doc.notesFile ? `<div class="note-item"><div><div class="note-snippet">This file looks like a notes section (${escapeHtml(doc.notesFile)}).</div><div class="note-meta">${number(words(doc.text))} words · excluding the whole file is usually cleaner here</div></div><button class="secondary mini-button" id="excludeNoteFile">${doc.included ? "Exclude file" : "Include file"}</button></div>` : "";
+      if (!(doc.notes || []).length && !fileNote) { box.innerHTML = '<p class="toolbar-note">No notes detected in this file.</p>'; return; }
+      const items = (doc.notes || []).map((note, index) => `<div class="note-item"><div><div class="note-snippet">${escapeHtml(note.text.replace(/\s+/g, " ").slice(0, 240))}</div><div class="note-meta">${note.confidence} confidence · ${escapeHtml(note.reason)} · ${number(words(note.text))} words${note.removed ? " · removed" : ""}</div></div><button class="secondary mini-button" data-note="${index}" ${note.removed ? "disabled" : ""}>${note.removed ? "Removed" : "Remove"}</button></div>`).join("");
+      box.innerHTML = `<div class="toolbar"><strong>Detected in this file</strong>${(doc.notes || []).length ? `<button id="removePageNotes" class="secondary mini-button" ${doc.notes.every(note => note.removed) ? "disabled" : ""}>Remove all in this file</button>` : ""}${doc.override != null ? '<button id="restorePage" class="secondary mini-button">Restore original</button>' : ""}</div><div class="note-list">${fileNote}${items}</div>`;
+      box.querySelectorAll("[data-note]").forEach(button => button.addEventListener("click", () => { removeNotesFromDoc(doc, note => note === doc.notes[Number(button.dataset.note)]); render(); updateEditor(); }));
+      const exclude = $("excludeNoteFile");
+      if (exclude) exclude.addEventListener("click", () => { doc.included = !doc.included; render(); updateEditor(); });
+      const removeFile = $("removePageNotes");
+      if (removeFile) removeFile.addEventListener("click", () => { removeNotesFromDoc(doc, () => true); render(); updateEditor(); });
+      const restoreFile = $("restorePage");
+      if (restoreFile) restoreFile.addEventListener("click", () => { restoreDocText(doc); render(); updateEditor(); });
+    }
     function renderToc() {
       const groups=structuralGroups(), flatCombined=state.maxDepth === 1 && state.targetCount < state.baseCount;
       const tree = nodes => `<ul>${nodes.map(node => `<li class="${node.depth <= state.depth ? "keep" : "cut"}">${escapeHtml(node.label)}${node.children.length ? tree(node.children) : ""}</li>`).join("")}</ul>`;
@@ -251,10 +333,14 @@
         const refs=[...spine.querySelectorAll(":scope > itemref")];
         for (const ref of refs) {
           const item=state.manifest.get(ref.getAttribute("idref")); if (!item || !/(xhtml|html|xml)/i.test(item.media + item.path)) continue;
-          const raw=await readEntry(item.path), text=textFromMarkup(raw);
-          state.spine.push({ id:item.id, path:item.path, raw, text, override:null, included:true, label:labelFor(item.path), index:state.spine.length });
+          const raw=await readEntry(item.path), label=labelFor(item.path);
+          const report=Notes ? Notes.analyzeMarkup(raw,{ DOMParser:window.DOMParser, label, path:item.path }) : null;
+          const text=report ? report.text : textFromMarkup(raw);
+          state.spine.push({ id:item.id, path:item.path, raw, text, report, label, index:state.spine.length, override:null, included:true,
+            notes:report && state.detectNotes ? report.candidates : [], ignored:report ? report.alreadyIgnored : [], notesFile:report ? report.notesFile : null });
         }
         if (!state.spine.length) throw new Error("No XHTML or HTML reading files were found in this EPUB's spine.");
+        detectNotes();
         mapNavigationToSpine(); state.baseCount=baseGroups().length; state.targetCount=Math.min(18,state.baseCount);
         $("bookName").textContent=file.name.replace(/\.epub$/i,""); $("exportButton").disabled=!state.nav.length; $("workspace").classList.remove("hidden"); render(); updateEditor();
         if (!state.nav.length) showNotice("This EPUB has no readable table of contents, so the chapter breakdown uses individual reading files and remapping is unavailable.");
@@ -307,6 +393,12 @@
     $("targetSlider").addEventListener("input",event=>{state.targetCount=Number(event.target.value); render();});
     $("includeAll").addEventListener("click",()=>{state.spine.forEach(doc=>doc.included=true); render();});
     $("excludeAll").addEventListener("click",()=>{state.spine.forEach(doc=>doc.included=false); render();});
+    $("fileFilter").addEventListener("input",event=>{state.filter=event.target.value; renderFiles();});
+    $("onlyFlagged").addEventListener("change",event=>{state.onlyFlagged=event.target.checked; renderFiles();});
+    $("detectNotes").addEventListener("change",event=>{state.detectNotes=event.target.checked; detectNotes(); render(); updateEditor();});
+    $("removeHighNotes").addEventListener("click",()=>removeNotesEverywhere(true));
+    $("removeAllNotes").addEventListener("click",()=>removeNotesEverywhere(false));
+    $("restoreText").addEventListener("click",restoreAllText);
     $("textEditor").addEventListener("input",event=>{if (!state.selected) return; state.selected.override=event.target.value; $("editorCount").textContent=`${number(docWords(state.selected))} words`; render();});
     $("exportButton").addEventListener("click",exportBook);
     document.querySelectorAll(".tab-button").forEach(button=>button.addEventListener("click",()=>{state.activeTab=button.dataset.tab; $("overviewPanel").classList.toggle("hidden",state.activeTab !== "overview"); $("filesPanel").classList.toggle("hidden",state.activeTab !== "files"); document.querySelectorAll(".tab-button").forEach(tab=>tab.classList.toggle("active",tab === button));}));
