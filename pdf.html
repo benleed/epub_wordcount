@@ -77,8 +77,9 @@
           <div class="card-title"><h2>Export</h2></div>
           <div class="control-body">
             <button id="squishButton" class="primary block" disabled>Download squished PDF</button>
+            <button id="squishCoverButton" class="secondary block" style="margin-top:8px" disabled>Add cover &amp; squish &amp; download PDF</button>
             <button id="coverButton" class="secondary block" style="margin-top:8px" disabled>Add cover &amp; download PDF</button>
-            <p class="export-note">The original file is never changed. “Squished” rewrites the PDF bookmarks to the chapters shown here.</p>
+            <p class="export-note">The original file is never changed. “Squished” rewrites the PDF bookmarks to the chapters shown here. The combined button adds the cover as page 1 and then rewrites the bookmarks, so each one still opens the right page. Excluding a chapter changes the word count only: the exports keep every page.</p>
           </div>
         </section>
       </aside>
@@ -316,12 +317,16 @@
       $("targetValue").textContent = $("targetSlider").value;
       $("chapters").innerHTML = groups.length ? groups.map((group, index) => {
         const status = group.includedPages ? (group.includedPages === group.pages.length ? "" : "partial") : "excluded";
-        const count = group.includedPages === group.pages.length ? number(group.count) : `<span class="included-count">${number(group.count)}</span> <span class="chapter-detail">/ ${number(group.total)}</span>`;
-        return `<div class="chapter-row ${status}"><span class="chapter-bar" style="background:hsl(${245 + (index * 23) % 75} 75% 82%)"></span><div><div class="chapter-name" title="${escapeHtml(group.label)}">${escapeHtml(group.label)}</div><div class="chapter-detail">pages ${group.pages[0].n}–${group.pages[group.pages.length - 1].n} · ${group.includedPages} of ${group.pages.length} included${group.combined ? " · combined" : ""}</div></div><div class="chapter-count"><span class="count-text">${count}</span><button class="secondary mini-button row-action" data-export="${index}" title="Download this chapter's text as a .txt file (useful for summarising)">TXT</button></div></div>`;
+        const allIncluded = group.includedPages === group.pages.length;
+        const count = allIncluded ? number(group.count) : `<span class="included-count">${number(group.count)}</span> <span class="chapter-detail">/ ${number(group.total)}</span>`;
+        const tick = `<input class="chapter-tick" type="checkbox" ${allIncluded ? "checked" : ""} data-chapter-toggle="${index}" title="Include this whole chapter in the word count. The exports keep every page either way." aria-label="Include ${escapeHtml(group.label)} in the word count">`;
+        return `<div class="chapter-row ${status}">${tick}<span class="chapter-bar" style="background:hsl(${245 + (index * 23) % 75} 75% 82%)"></span><div><div class="chapter-name" title="${escapeHtml(group.label)}">${escapeHtml(group.label)}</div><div class="chapter-detail">pages ${group.pages[0].n}–${group.pages[group.pages.length - 1].n} · ${group.includedPages} of ${group.pages.length} included${group.combined ? " · combined" : ""}</div></div><div class="chapter-count"><span class="count-text">${count}</span><button class="secondary mini-button row-action" data-export="${index}" title="Download this chapter's text as a .txt file (useful for summarising)">TXT</button></div></div>`;
       }).join("") : '<div class="empty">No pages are included.</div>';
       document.querySelectorAll("[data-export]").forEach(button => button.addEventListener("click", event => { event.stopPropagation(); exportChapter(groups[Number(button.dataset.export)]); }));
+      document.querySelectorAll("[data-chapter-toggle]").forEach(input => input.addEventListener("change", event => { const group = groups[Number(event.target.dataset.chapterToggle)]; if (!group) return; const all = group.pages.every(page => page.included); group.pages.forEach(page => page.included = !all); render(); }));
       renderFiles();
       $("squishButton").disabled = !state.fileBytes || !groups.length;
+      $("squishCoverButton").disabled = !state.fileBytes || !groups.length || !state.cover;
       $("coverButton").disabled = !state.fileBytes || !state.cover;
       renderNotesPanel();
       renderToc();
@@ -503,27 +508,53 @@
       const { PDFHexString, PDFString } = PDFLib;
       try { return PDFHexString.fromText(label); } catch (error) { return PDFString.of(label); }
     }
+    // Rewrite the PDF outline so it lists exactly the chapters shown here. Page destinations are
+    // page references, which stay valid when a page is inserted, so pageOffset only has to account
+    // for the cover page shifting every index by one.
+    function applyOutline(doc, groups, pageOffset) {
+      const { PDFName, PDFDict, PDFNumber } = PDFLib;
+      const context = doc.context, pageCount = doc.getPageCount();
+      const root = PDFDict.withContext(context); root.set(PDFName.of("Type"), PDFName.of("Outlines"));
+      const rootRef = context.register(root);
+      const items = groups.map(group => {
+        const dict = PDFDict.withContext(context);
+        dict.set(PDFName.of("Parent"), rootRef);
+        dict.set(PDFName.of("Title"), pdfTitle(group.label));
+        const start = Math.min(Math.max(1, group.pages[0].n + (pageOffset || 0)), pageCount);
+        dict.set(PDFName.of("Dest"), context.obj([doc.getPage(start - 1).ref, PDFName.of("Fit")]));
+        return { ref:context.register(dict), dict };
+      });
+      items.forEach((item, index) => { if (index > 0) item.dict.set(PDFName.of("Prev"), items[index - 1].ref); if (index < items.length - 1) item.dict.set(PDFName.of("Next"), items[index + 1].ref); });
+      root.set(PDFName.of("First"), items[0].ref); root.set(PDFName.of("Last"), items[items.length - 1].ref); root.set(PDFName.of("Count"), PDFNumber.of(items.length));
+      doc.catalog.set(PDFName.of("Outlines"), rootRef); doc.catalog.set(PDFName.of("PageMode"), PDFName.of("UseOutlines"));
+    }
+    // Insert the chosen image as page 1, using the same fit/size rules as addcover.js. The
+    // existing bookmarks are left alone because their destinations are page references.
+    async function applyCover(doc) {
+      if (!state.cover) throw new Error("Choose a cover image first.");
+      const image = state.cover.type === "png" ? await doc.embedPng(state.cover.bytes) : await doc.embedJpg(state.cover.bytes);
+      const fit = $("coverFit").value, dpi = Number($("coverDpi").value) || 300, widthIn = parseFloat($("coverWidth").value), heightIn = parseFloat($("coverHeight").value);
+      const explicit = widthIn > 0 && heightIn > 0;
+      const base = doc.getPageCount() ? doc.getPage(0).getSize() : { width:612, height:792 };
+      let pageWidth, pageHeight;
+      if (fit === "native") { pageWidth = (image.width / dpi) * 72; pageHeight = (image.height / dpi) * 72; }
+      else if (explicit) { pageWidth = widthIn * 72; pageHeight = heightIn * 72; }
+      else { pageWidth = base.width; pageHeight = base.height; }
+      const imageRatio = image.width / image.height, pageRatio = pageWidth / pageHeight;
+      let drawWidth, drawHeight;
+      if (fit === "native") { drawWidth = pageWidth; drawHeight = pageHeight; }
+      else if (fit === "cover") { if (imageRatio > pageRatio) { drawHeight = pageHeight; drawWidth = pageHeight * imageRatio; } else { drawWidth = pageWidth; drawHeight = pageWidth / imageRatio; } }
+      else { if (imageRatio > pageRatio) { drawWidth = pageWidth; drawHeight = pageWidth / imageRatio; } else { drawHeight = pageHeight; drawWidth = pageHeight * imageRatio; } }
+      const cover = doc.insertPage(0, [pageWidth, pageHeight]);
+      cover.drawImage(image, { x:(pageWidth - drawWidth) / 2, y:(pageHeight - drawHeight) / 2, width:drawWidth, height:drawHeight });
+    }
     async function exportSquished() {
       try {
         if (!state.fileBytes) throw new Error("Open a PDF first.");
         const groups = structuralGroups();
         if (!groups.length) throw new Error("There are no chapters to write.");
-        const { PDFDocument, PDFName, PDFDict, PDFNumber } = PDFLib;
-        const doc = await PDFDocument.load(state.fileBytes, { ignoreEncryption:true });
-        const context = doc.context, pageCount = doc.getPageCount();
-        const root = PDFDict.withContext(context); root.set(PDFName.of("Type"), PDFName.of("Outlines"));
-        const rootRef = context.register(root);
-        const items = groups.map(group => {
-          const dict = PDFDict.withContext(context);
-          dict.set(PDFName.of("Parent"), rootRef);
-          dict.set(PDFName.of("Title"), pdfTitle(group.label));
-          const start = Math.min(Math.max(1, group.pages[0].n), pageCount);
-          dict.set(PDFName.of("Dest"), context.obj([doc.getPage(start - 1).ref, PDFName.of("Fit")]));
-          return { ref:context.register(dict), dict };
-        });
-        items.forEach((item, index) => { if (index > 0) item.dict.set(PDFName.of("Prev"), items[index - 1].ref); if (index < items.length - 1) item.dict.set(PDFName.of("Next"), items[index + 1].ref); });
-        root.set(PDFName.of("First"), items[0].ref); root.set(PDFName.of("Last"), items[items.length - 1].ref); root.set(PDFName.of("Count"), PDFNumber.of(items.length));
-        doc.catalog.set(PDFName.of("Outlines"), rootRef); doc.catalog.set(PDFName.of("PageMode"), PDFName.of("UseOutlines"));
+        const doc = await PDFLib.PDFDocument.load(state.fileBytes, { ignoreEncryption:true });
+        applyOutline(doc, groups, 0);
         download(await doc.save(), `${baseName()} (outline).pdf`);
       } catch (error) { showNotice(`Could not rewrite the outline: ${error.message || error}`); console.error(error); }
     }
@@ -531,25 +562,24 @@
       try {
         if (!state.fileBytes) throw new Error("Open a PDF first.");
         if (!state.cover) throw new Error("Choose a cover image first.");
-        const { PDFDocument } = PDFLib;
-        const doc = await PDFDocument.load(state.fileBytes, { ignoreEncryption:true });
-        const image = state.cover.type === "png" ? await doc.embedPng(state.cover.bytes) : await doc.embedJpg(state.cover.bytes);
-        const fit = $("coverFit").value, dpi = Number($("coverDpi").value) || 300, widthIn = parseFloat($("coverWidth").value), heightIn = parseFloat($("coverHeight").value);
-        const explicit = widthIn > 0 && heightIn > 0;
-        const base = doc.getPageCount() ? doc.getPage(0).getSize() : { width:612, height:792 };
-        let pageWidth, pageHeight;
-        if (fit === "native") { pageWidth = (image.width / dpi) * 72; pageHeight = (image.height / dpi) * 72; }
-        else if (explicit) { pageWidth = widthIn * 72; pageHeight = heightIn * 72; }
-        else { pageWidth = base.width; pageHeight = base.height; }
-        const imageRatio = image.width / image.height, pageRatio = pageWidth / pageHeight;
-        let drawWidth, drawHeight;
-        if (fit === "native") { drawWidth = pageWidth; drawHeight = pageHeight; }
-        else if (fit === "cover") { if (imageRatio > pageRatio) { drawHeight = pageHeight; drawWidth = pageHeight * imageRatio; } else { drawWidth = pageWidth; drawHeight = pageWidth / imageRatio; } }
-        else { if (imageRatio > pageRatio) { drawWidth = pageWidth; drawHeight = pageWidth / imageRatio; } else { drawHeight = pageHeight; drawWidth = pageHeight * imageRatio; } }
-        const cover = doc.insertPage(0, [pageWidth, pageHeight]);
-        cover.drawImage(image, { x:(pageWidth - drawWidth) / 2, y:(pageHeight - drawHeight) / 2, width:drawWidth, height:drawHeight });
+        const doc = await PDFLib.PDFDocument.load(state.fileBytes, { ignoreEncryption:true });
+        await applyCover(doc);
         download(await doc.save(), `${baseName()} (cover).pdf`);
       } catch (error) { showNotice(`Could not add the cover: ${error.message || error}`); console.error(error); }
+    }
+    // Both jobs in one pass: the cover becomes page 1 first, then the outline is written with
+    // every page number shifted past it.
+    async function exportSquishedCover() {
+      try {
+        if (!state.fileBytes) throw new Error("Open a PDF first.");
+        if (!state.cover) throw new Error("Choose a cover image first.");
+        const groups = structuralGroups();
+        if (!groups.length) throw new Error("There are no chapters to write.");
+        const doc = await PDFLib.PDFDocument.load(state.fileBytes, { ignoreEncryption:true });
+        await applyCover(doc);
+        applyOutline(doc, groups, 1);
+        download(await doc.save(), `${baseName()} (outline + cover).pdf`);
+      } catch (error) { showNotice(`Could not write the squished PDF with a cover: ${error.message || error}`); console.error(error); }
     }
 
     // ---- events ----
@@ -578,6 +608,7 @@
     $("restoreText").addEventListener("click", restoreAllText);
     $("textEditor").addEventListener("input", event => { if (!state.selected) return; state.selected.override = event.target.value; $("editorCount").textContent = `${number(pageWords(state.selected))} words`; render(); });
     $("squishButton").addEventListener("click", exportSquished);
+    $("squishCoverButton").addEventListener("click", exportSquishedCover);
     $("coverButton").addEventListener("click", exportCover);
     document.querySelectorAll(".tab-button").forEach(button => button.addEventListener("click", () => { state.activeTab = button.dataset.tab; $("overviewPanel").classList.toggle("hidden", state.activeTab !== "overview"); $("filesPanel").classList.toggle("hidden", state.activeTab !== "pages"); document.querySelectorAll(".tab-button").forEach(tab => tab.classList.toggle("active", tab === button)); }));
   })();

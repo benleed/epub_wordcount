@@ -51,11 +51,18 @@ input[type=range] { width:100%; accent-color:var(--brand); }
 .summary h2 { margin:0; font-size:1.05rem; } .summary p { margin:3px 0 0; color:#d9d7ff; font-size:.85rem; }
 .total { font-size:1.8rem; font-weight:850; letter-spacing:-.05em; white-space:nowrap; }
 .chapter-table { overflow:hidden; }
-.chapter-row { display:grid; grid-template-columns:31px minmax(0,1fr) auto; gap:12px; align-items:center; padding:13px 19px; border-bottom:1px solid #edf0f5; }
+.chapter-row { display:grid; grid-template-columns:22px 5px minmax(0,1fr) auto; gap:12px; align-items:center; padding:13px 19px; border-bottom:1px solid #edf0f5; }
 .chapter-row:last-child { border-bottom:0; } .chapter-row:hover { background:#fafaff; }
 .chapter-row.excluded { opacity:.5; background:#fafafa; } .chapter-row.partial .chapter-count .included-count { color:#475569; } .excluded .chapter-name { color:#7b8497; text-decoration:line-through; }
 .chapter-bar { width:5px; height:31px; border-radius:999px; background:#d9d6fe; } .chapter-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:680; }
 .chapter-detail { color:var(--muted); font-size:.78rem; } .chapter-count { display:flex; align-items:center; justify-content:flex-end; gap:10px; }
+/* A folded chapter sits under the chapter it joins, dimmed and struck through. */
+.chapter-row.child { padding-left:60px; background:#fcfcff; }
+.chapter-row.child .chapter-bar { height:17px; opacity:.5; }
+.chapter-row.child .chapter-name { color:#98a2b3; font-weight:600; text-decoration:line-through; }
+.chapter-row.child .count-text { color:var(--muted); font-weight:700; }
+.chapter-tick { accent-color:var(--brand); width:18px; height:18px; margin:0; cursor:pointer; }
+.chapter-tick:disabled { cursor:default; opacity:.55; }
 .count-text { font-variant-numeric:tabular-nums; font-weight:800; }
 .row-action { flex:none; }
 .files { max-height:calc(100vh - 240px); min-height:360px; overflow:auto; }

@@ -29,9 +29,19 @@ book storage: the book is opened and processed entirely in the browser.
   possible to treat nested sections as part of a parent chapter. For EPUBs
   whose contents are completely flat, a separate target-chapter control
   combines adjacent sections into practical, similarly sized reading chunks.
-- Titles a combined flat chunk `[first chapter] – [last chapter]`, so the
-  e-reader navigation says which range it covers instead of only where it
-  starts.
+- Lets you choose the **parent chapters** by hand in the **Reading breakdown**:
+  tick the chapters that should stay chapters (for example 1, 5, 8 and 12) and
+  every chapter between two ticks is shown nested under the earlier tick and
+  folds into it. The tick list is the single source of truth for the exported
+  structure, so the level and target-chapter controls simply set it for you and
+  you can then adjust it row by row.
+- Titles a combined chunk `[first chapter] – [last chapter]`, so the e-reader
+  navigation says which range it covers instead of only where it starts; a
+  setting keeps the parent's own title instead when you prefer that.
+- Has an include/exclude control on every chapter row of the EPUB **Overview**
+  and the PDF **Reading breakdown**, next to **TXT**, so a whole chapter can be
+  taken out of the word count without opening the per-file tab. Exclusion only
+  affects the count: the exports still contain the chapter.
 - Groups the **Files & text** / **Pages & text** list by chapter, with a filter
   box and a "only flagged" toggle, so a book with hundreds of small files (or a
   long footnote review list) stays navigable.
@@ -66,16 +76,26 @@ book storage: the book is opened and processed entirely in the browser.
    a larger level preserves more nested sections.
 6. For a flat contents list, use **Target chapters** to choose the maximum
    number of reading chapters in the rebuilt book. The default is 18 (or fewer
-   when the book has fewer sections). Combined chapters are titled
-   `first – last`.
-7. Use **Download squished EPUB** only after reviewing the contents preview.
+   when the book has fewer sections). This ticks chapters in the reading
+   breakdown for you.
+7. Adjust the ticks in the **Reading breakdown** if you want a different
+   structure: tick a chapter to keep it, untick it to fold it into the chapter
+   above (it stays visible, indented and struck through, with its own tick to
+   pull it back out). **Keep all chapters** undoes every fold, and **Title of a
+   chapter that has folded chapters** chooses between `first – last` and the
+   parent's own title. The first chapter always heads a chapter, because front
+   matter folds into it.
+8. The **Exclude** button on a chapter row takes that chapter out of the word
+   count (greyed out, and *included / total* when only some of its files are
+   counted). It never changes the export.
+9. Use **Download squished EPUB** only after reviewing the contents preview.
    Test the result on the target e-reader before replacing a copy in your
    library.
 
 For PDFs, open `pdf.html` instead and follow the same shape of workflow: review
 the per-bookmark word counts, choose a chapter level (or define page-based
-chapters), check the notes found on the pages, and export either a rewritten
-outline or a copy with a cover.
+chapters), check the notes found on the pages, and export a rewritten outline, a
+copy with a cover, or both in one file.
 
 Edits in the text box deliberately affect only the displayed word count. They
 are a safe way to refine an estimate: characters typed, deleted, or removed by a
@@ -170,14 +190,20 @@ retained parent and its relative links are rebased for the new location. Every
 resulting chapter keeps its first reading file and folds the subsequent files
 into it. The folded source documents remain in the ZIP manifest but are removed
 from the spine; this helps retain internal links/resources while preventing the
-normal reading flow from treating them as separate chapters. For a flat contents
-list, adjacent entries are combined into the target chapter count by reading
-length, and each combined chapter is titled `first – last` so its entry in the
-rebuilt navigation shows the range it covers; because no contents entry precedes
-it, any opening spine file (such as a cover) folds into the first chapter, which
-is why that chapter's retained file is the book's opening file. Because
-malformed or unusually constructed EPUBs are common, keep the original and
-validate exported books in the e-reader that matters to you.
+normal reading flow from treating them as separate chapters.
+
+Which chapters those are comes from the ticks in the **Reading breakdown**:
+`parents` holds the retained chapters, and every run of unticked chapters is
+merged into the ticked chapter before it, titled `first – last` so its entry in
+the rebuilt navigation shows the range it covers (or the parent's own title, if
+that setting is chosen). Because no contents entry precedes it, any opening
+spine file (such as a cover) folds into the first chapter, which is why that
+chapter's retained file is the book's opening file, and why the first chapter's
+tick cannot be cleared. **Target chapters** on a flat contents list is a
+convenience that ticks the first chapter of each length-based chunk; the level
+control re-ticks every chapter at the chosen level. Because malformed or
+unusually constructed EPUBs are common, keep the original and validate exported
+books in the e-reader that matters to you.
 
 ## PDF support (`pdf.html`)
 
@@ -210,6 +236,14 @@ fundamentally different from EPUB; PDFs are never treated as EPUBs.
     width/height follow the same logic as the standalone `addcover.js`, but the
     page is inserted into the loaded document instead of rebuilding it, which is
     what keeps the original contents intact.
+  - **Add cover & squish & download PDF** does both in one pass: the cover is
+    inserted first, then the outline is written with every page number shifted
+    past it, so each bookmark still opens the page it names. Page destinations
+    are page *references*, which survive the insertion, so only the index needs
+    the offset.
+- The chapter rows in the **Reading breakdown** carry a tick that includes or
+  excludes the whole chapter from the word count (the same switch as the group
+  headers in **Pages & text**). The exports ignore it and keep every page.
 
 PDF text extraction is an estimate, not a paginated-print pipeline: it follows
 the same tokenizer as the EPUB tool and can be refined with the per-page text
@@ -229,6 +263,15 @@ fixture set covering:
 - nested navigation whose child sections are separate spine files
 - a book with front/back matter excluded from estimates
 - relative images and links inside a folded child chapter
+- ticking parent chapters in a flat contents list and checking the rewritten
+  spine and navigation match the ticks
+
+Both pages can also be exercised without a browser while keeping the repo
+dependency free: load `index.html` in `jsdom`, substitute `jszip` and
+`footnotes.js`, and drive the page against a real fixture EPUB; call
+`applyOutline`/`applyCover` from `pdf.html` with `pdf-lib` in Node and re-open
+the saved bytes to check where each bookmark points (the combined export has to
+be exactly one page out from the outline-only export).
 
 Test exports in both a validator and at least one actual e-reader: EPUB
 navigation and spine behavior differs between reading systems.
